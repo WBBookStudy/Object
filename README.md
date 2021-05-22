@@ -11,7 +11,7 @@
 [Sublime Text용 Swift 패키지 링크](https://packagecontrol.io/packages/Swift)
 
 ## 참여자
-👽 김진호 : [GitHub](https://github.com/kimsox)
+👽 김진호 : [GitHub](https://github.com/kimsox)  
 😎 이한위 : [E-mail]mobiledev@kakao.com, [GitHub](https://github.com/HanweeeeLee)  
 👻 정현기 : [E-mail]jhkman1208@gmail.com
 
