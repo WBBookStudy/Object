@@ -191,8 +191,8 @@ public class Theater {
 
 ### 무엇이 문제인가?
  - 직관적으로 생각해봤을 때 우리는 표를 구매할 때 우리 스스로 가방을 열어 초대장을 확인하고 초대장이 없으면 우리가 직접 돈을 지불하고 계산하여 티켓을 받고 가방에 넣는다. 
- - 위의 예제에서는 우리는 단순히 수동적인 존재이며 극장 이라는 객체가 모든 일을 처리한다. 뿐만 아니라 판매원 또한 극장 자체가 판매원의 허락없이 티켓을 가져가고 돈을 적립하고 있다.
- - 또한 각각의 클래스는 데이터로서의 역할만을 담당하고 있고 극장 이라는 클래스가 모든 일을 처리하고 있다.
+ - 위의 예제에서는 관람객(우리)은 단순히 수동적인 존재이며 극장 이라는 객체가 모든 일을 처리한다. 뿐만 아니라 판매원 또한 극장 자체가 판매원의 허락없이 티켓을 가져가고 돈을 적립하고 있다.
+ - 각각의 클래스는 데이터로서의 역할만을 담당하고 있고 극장 이라는 클래스가 모든 일을 처리하고 있다.
  - 다시 말해 데이터에서 변화가 발생하는 경우 극장에서의 로직은 언제나 변경되어야 하는 대상이 되며 극장 은 너무나 많은 클래스와 의존성을 맺고 있다고 볼 수 있다.
 
 ###  로버트 마틴이 말하는 소프트웨어 모듈의 3가지 특성
@@ -201,3 +201,44 @@ public class Theater {
  - 이해하기 쉬워야 한다.
 
 ## 3. 해결책 : 자율적인 객체
+ - 각각의 객체(관람객, 판매원..)가 자율적인 존재 로서 본인의 역할과 책임을 수행하고 있지 않기 때문에 외부 클래스(극장)에서 이를 관리하게 되고 그렇기 때문에 직관적으로 이해하기 어렵고 하나의 클래스(극장)가 너무 많은 곳에 의존함으로써 결합도가 높아진다. 해결책은 당연히 각각의 객체에게 자율성을 부여하는 것이다.
+ - 해결책으로는 각각의 객체에게 자율성을 부여하여 본인의 역할과 책임을 수행하게 한다.
+
+###  로버트 마틴이 말하는 소프트웨어 모듈의 3가지 특성
+ - 티켓을 판매하는 기능은 극장의 역할이 아니다. 판매원이 해야하는 역할이다. 이를 위해 기존에 극장에서 담당하는 enter의 내부 메서드를 판매원이 담당할수 있도록 변경하였다.
+ - 객체 내부의 세부적인 사항을 캡슐화 하여 외부 객체에게 내부 접근을 불가능하게 하여 객체 사이의 결합도를 낮추어 변경에 용이하다. 
+```
+public class Theater {
+    	private TicketSeller ticketSeller;
+    
+    	public Theater(TicketSeller ticketSeller) {
+    		  this.ticketSeller = ticketSeller;
+    	}
+    
+    	public void enter(Audience audience) {
+    		  ticketSeller.toSell(audience);   
+    	}
+}
+    
+public class TicketSeller {
+    	private TicketOffice ticketOffice;
+    
+    	public TicketSeller(TicketOffice ticketOffice) {
+    		  this.ticketOffice = ticketOffice;
+    	}
+    
+     //기존 극장에서 담당하는 enter의 내부 메서드를 toSell로 작성
+    	public void toSell(Audience audience) {
+        if(audience.getBag().hasInvitation()) {
+          Ticket ticket = ticketOffice.getTicket();
+          audience.getBag().setTicket(ticket);
+        } else {
+          Ticket ticket = ticketOffice.getTicket();
+          audience.getBag().minusAmount(ticket.getFee());
+          ticketOffice.plusAmount(ticket.getFee());
+          audience.getBag().setTicket(ticket);
+        }
+    	}
+}
+```
+ 
