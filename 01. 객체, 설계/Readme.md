@@ -204,7 +204,7 @@ public class Theater {
  - 각각의 객체(관람객, 판매원..)가 자율적인 존재 로서 본인의 역할과 책임을 수행하고 있지 않기 때문에 외부 클래스(극장)에서 이를 관리하게 되고 그렇기 때문에 직관적으로 이해하기 어렵고 하나의 클래스(극장)가 너무 많은 곳에 의존함으로써 결합도가 높아진다. 해결책은 당연히 각각의 객체에게 자율성을 부여하는 것이다.
  - 해결책으로는 각각의 객체에게 자율성을 부여하여 본인의 역할과 책임을 수행하게 한다.
 
-###  로버트 마틴이 말하는 소프트웨어 모듈의 3가지 특성
+###  캡슐화
  - 티켓을 판매하는 기능은 극장의 역할이 아니다. 판매원이 해야하는 역할이다. 이를 위해 기존에 극장에서 담당하는 enter의 내부 메서드를 판매원이 담당할수 있도록 변경하였다.
  - 객체 내부의 세부적인 사항을 캡슐화 하여 외부 객체에게 내부 접근을 불가능하게 하여 객체 사이의 결합도를 낮추어 변경에 용이하다. 
 ```
@@ -241,4 +241,40 @@ public class TicketSeller {
     	}
 }
 ```
+
+ - 마찬가지로 관객이 직접 가방을 꺼내지 않고 극장이 이를 꺼내는 것이 문제가 되었다. 이 또한 고쳐보자
+```
+public class TicketSeller {
+    	private TicketOffice ticketOffice;
+    
+    	public TicketSeller(TicketOffice ticketOffice) {
+    		  this.ticketOffice = ticketOffice;
+    	}
+    
+    	public void toSell(Audience audience) {
+    		  ticketOffice.plusAmount(audience.buy(ticketOffice.getTicket()));
+    	}
+}
+    
+public class Audience {
+    	private Bag bag;
+    
+    	public Audience(Bag bag) {
+    		  this.bag = bag;
+    	}
+    
+    	public Long buy(Ticket ticket) {
+     
+    		  if(bag.hasInvitation()) {
+    			    bag.setTicket(ticket);
+    			    return 0L;
+    		  }else {
+    			    bag.setTicket(ticket);
+    			    bag.minusAmount(ticket.getFee());
+    			    return ticket.getFee();
+    		  }
+    	}
+}
+```
+ -
  
