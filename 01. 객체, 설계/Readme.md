@@ -212,11 +212,11 @@ public class Theater {
     	private TicketSeller ticketSeller;
     
     	public Theater(TicketSeller ticketSeller) {
-    		  this.ticketSeller = ticketSeller;
+    		 this.ticketSeller = ticketSeller;
     	}
     
     	public void enter(Audience audience) {
-    		  ticketSeller.toSell(audience);   
+    		 ticketSeller.toSell(audience);   
     	}
 }
     
@@ -224,20 +224,20 @@ public class TicketSeller {
     	private TicketOffice ticketOffice;
     
     	public TicketSeller(TicketOffice ticketOffice) {
-    		  this.ticketOffice = ticketOffice;
+    		 this.ticketOffice = ticketOffice;
     	}
     
      //기존 극장에서 담당하는 enter의 내부 메서드를 toSell로 작성
     	public void toSell(Audience audience) {
-        if(audience.getBag().hasInvitation()) {
-          Ticket ticket = ticketOffice.getTicket();
-          audience.getBag().setTicket(ticket);
-        } else {
-          Ticket ticket = ticketOffice.getTicket();
-          audience.getBag().minusAmount(ticket.getFee());
-          ticketOffice.plusAmount(ticket.getFee());
-          audience.getBag().setTicket(ticket);
-        }
+       if(audience.getBag().hasInvitation()) {
+         Ticket ticket = ticketOffice.getTicket();
+         audience.getBag().setTicket(ticket);
+       } else {
+         Ticket ticket = ticketOffice.getTicket();
+         audience.getBag().minusAmount(ticket.getFee());
+         ticketOffice.plusAmount(ticket.getFee());
+         audience.getBag().setTicket(ticket);
+       }
     	}
 }
 ```
@@ -248,11 +248,11 @@ public class TicketSeller {
     	private TicketOffice ticketOffice;
     
     	public TicketSeller(TicketOffice ticketOffice) {
-    		  this.ticketOffice = ticketOffice;
+    		 this.ticketOffice = ticketOffice;
     	}
     
     	public void toSell(Audience audience) {
-    		  ticketOffice.plusAmount(audience.buy(ticketOffice.getTicket()));
+    		 ticketOffice.plusAmount(audience.buy(ticketOffice.getTicket()));
     	}
 }
     
@@ -260,20 +260,20 @@ public class Audience {
     	private Bag bag;
     
     	public Audience(Bag bag) {
-    		  this.bag = bag;
+    		 this.bag = bag;
     	}
     
     	public Long buy(Ticket ticket) {
      
-    		  if(bag.hasInvitation()) {
-    			    bag.setTicket(ticket);
-    			    return 0L;
-    		  }else {
-    			    bag.setTicket(ticket);
-    			    bag.minusAmount(ticket.getFee());
-    			    return ticket.getFee();
-    		  }
-    	}
+    		 if(bag.hasInvitation()) {
+    			   bag.setTicket(ticket);
+    			   return 0L;
+    		 }else {
+    			   bag.setTicket(ticket);
+    			   bag.minusAmount(ticket.getFee());
+    			   return ticket.getFee();
+    		 }
+   	}
 }
 ```
  -
