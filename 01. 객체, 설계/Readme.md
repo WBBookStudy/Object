@@ -227,7 +227,7 @@ public class TicketSeller {
     		 this.ticketOffice = ticketOffice;
     	}
     
-     //기존 극장에서 담당하는 enter의 내부 메서드를 toSell로 작성
+     //기존 극장에서 담당하는 enter의 내부 메서드를 toSell 메서드로 작성
     	public void toSell(Audience audience) {
        if(audience.getBag().hasInvitation()) {
          Ticket ticket = ticketOffice.getTicket();
@@ -276,8 +276,72 @@ public class Audience {
    	}
 }
 ```
- - 기존에 극장 에서 가방을 꺼내어 돈을 가져가고 했던 부분이 리팩토링을 통해 판매원이 하도록 변경하였다.
- - 관객은 스스로 티켓의 여부를 판단하고 판매원이 제공하는 티켓을 본인의 가방에 넣고 발생한 금액을 지불하는 형태를 가진다.
- - 구매하는 로직이 변경되더라도 관객클래스에서만 로직을 변경하면 다른 클래스는 영향을 받지 않는다. 즉 의존성이 낮아지고 결합도가 낮아졌다고 볼 수 있다.
- 
+ - 기존에 극장이 가방에서 돈을 가져가던 부분이 리팩토링을 통하여 관객 스스로 자신의 가방안에 초대장이 들어있는지를 스스로 확인한다.
+ - Audience가 Bag을 직접 처리하기 때문에 외부에서는 더이상 Audience가 Bag을 소유하고 있다는것을 알 필요가 없다.
+ - TicketSeller 또한 Audience의 buy 메서드를 호출하게 하여 Audience의 인터페이스에만 의존하게 되었다
+ - 구매하는 로직이 변경되더라도 Audience에서만 로직을 변경하면 다른 클래스는 영향을 받지 않는다. 즉 의존성이 낮아지고 결합도가 낮아졌다고 볼 수 있다.
+
+## 4. 절차지향과 객체지향
+ - 절차지향의 관점에서 Theater에서 enter는 프로세스이고 나머지 클래스들 (Audience.. ) 등은 데이터를 말한다. 프로세스와 데이터를 별도의 모듈에 위치시키는 방식을 절차 지향 프로그래밍이라고 부른다.
+ - 이와 반대로 프로세스가 동일한 모듈 내부에 위치하도록 하는 방식을 객체지향 프로그래밍이라 부른다.
+
+## 5. 책임의이동
+결국 두 방식의 근본적인 차이는 책임의 이동인데, 위에서 처음 표현한 코드는 Theater에 책임이 집중되어 있었다. 수정후에는 각 객체의 책임이 적절하게 분배되고, 따라서 각 객체들은 스스로 책임을 지게된다.
+ - 책임이란? - 기능을 가리키는 객체지향 세계의 용어로 생각해도 무방하다.
+
+
+## 5. 추가적인 개선
+ - Bag는 실제로는 무생물 이기에 자율성을 갖지 않지만 객체지향의 세계에서는 각각의 객체는 자율성을 가지게 된다.
+ - 객체지향은 현실세계를 모방하는 것이 아닌 재창조하는 과정 이라고 설명되며 각각의 존재들은 의인화 및 은유 를 통해 표현된다.
+ - Bag가 hold 라는 메서드를 통해 직접 초대장을 확인하고 인자로 입력받은 초대장을 가방에 입력하는 형태로 변경함으로써 Bag에게 자율권을 부여한다.
+```
+public class Bag {
+   	private Long amount;
+   	private Invitation invitation;
+   	private Ticket ticket;
+   
+   	public Bag(Long amount) {
+   		this(null,amount);
+   	}
+   
+   	public Bag(Invitation invitation, long amount) {
+   		this.amount = amount;
+   		this.invitation = invitation;
+   	}
+   
+   	public Long hold(Ticket ticket) {
+   		if(hasInvitation()) {
+   			setTicket(ticket);
+   			return 0L;
+   		} else {
+   			setTicket(ticket);
+   			minusAmount(ticket.getFee());
+   			return ticket.getFee();
+   		}
+   	}
+   
+   	private boolean hasInvitation() {
+   		return invitation != null;
+   	}
+   
+   	public boolean hasTicket() {
+   		return ticket != null;
+   	}
+   
+   	private void setTicket(Ticket ticket) {
+   		this.ticket = ticket;
+   	}
+   
+   	private void minusAmount(Long amount) {
+   		this.amount -= amount;
+   	}
+   
+   	public void plusAmount(Long amount) {
+   		this.amount += amount;
+   	}
+ }
+```
+
+ - 
+
  
