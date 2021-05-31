@@ -341,7 +341,64 @@ public class Bag {
    	}
  }
 ```
+ - Bag의 구현을 캡슐화 시켰으니 Audience를 Bag의 구현이 아닌 인터페이스에만 의존하도록 수정한다
+```
+public class Audience {
+   	private Bag bag;
+   
+   	public Audience(Bag bag) {
+   		this.bag = bag;
+   	}
+   
+   	public Long buy(Ticket ticket) {
+   		return bag.hold(ticket);
+   	}
+}
+```
 
- - 
+ - TicketOffice 또한 외부에서 Get을 통해 사용하지 않고 본인의 로직을 본인이 처리하도록 변경하자.
+```
+public class TicketOffice {
+    	private Long amount;
+    	private List<Ticket> tickets = new ArrayList<>();
+    
+    	public TicketOffice(Long amount, Ticket ... tickets) {
+    		this.amount = amount;
+    		this.tickets.addAll(Arrays.asList(tickets));
+    	}
+    
+    	public void sellTicketTo(Audience audience) {
+    		plusAmount(audience.buy(getTicket()));
+    	}
+    
+    	private Ticket getTicket() {
+    		return tickets.remove(0);
+    	}
+    
+    	public void minusAmount(Long amount) {
+    		this.amount -= amount;
+    	}
+    
+    	private void plusAmount(Long amount) {
+    		this.amount += amount;
+    	}    
+}
+```
+ - TicketSeller는 TicketOffice의 sellTicketTo메서드를 호출함으로서 더이상 TicketOffice의 구현이 아닌 인터페이스에만 의존하게 되었다.
+```
+public class TicketSeller {
+    	private TicketOffice ticketOffice;
+    
+    	public TicketSeller(TicketOffice ticketOffice) {
+    		this.ticketOffice = ticketOffice;
+    	}
+    
+    	public void toSell(Audience audience) {
+    		ticketOffice.sellTicketTo(audience);
+    	}
+}
+```
+ - 위 코드에서 객체의 자율권을 부여하다보니 TicketOffice가 기존에 참조하지 않던 Audience와 결합되게 되었다. 
+ - 이런 경우 의존성을 약화시키기 위해 기존의 방법을 사용해야하는가 현상태를 유지해야하는가? 이는 개인의 판단이고 프로그램의 설계 및 구조관점에서 의미있는 논리가 존재한다면 본인의 선택에 따라 사용하면 된다
 
  
