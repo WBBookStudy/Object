@@ -7,7 +7,7 @@
  문제를 해결하기 위해 사용자가 프로그램을 사용하는 분야
 
 ## 예제 UML
-<img width="754" alt="스크린샷 2021-06-04 오후 8 17 28" src="https://user-images.githubusercontent.com/60125719/120793629-15f12180-c572-11eb-97b2-fb4d45e31be6.png">
+<img width="754" alt="스크린샷 2021-06-04 오후 8 17 28" src="https://user-images.githubusercontent.com/60125719/120793629-15f12180-c572-11eb-97b2-fb4d45e31be6.png">
 
 ## Screening Class
 ```
@@ -306,23 +306,159 @@ Movie avatar = new Movie("아바타",
 ```
 
 
+## 컴파일 시간 의존성과 실행 시간 의존성
+![KakaoTalk_Photo_2021-06-06-15-41-53](https://user-images.githubusercontent.com/60125719/120915267-cd567700-c6dd-11eb-8287-cdea3e1b9ffd.jpeg)
+Movie는 실제 할인정책을 알지 못하는데 어떻게 할인을 적용할까?
+```
+Movie avatar = new Movie("아바타", 
+                        Duration.ofMinutes(120),
+                        Money.wons(10000),
+                        new AmoutDiscountPolicy(Money.wons(800), ...));
+```
+-> 코드의 의존성과 실행시점의 의존성이 서로 다를 수 있다.
 
+## 차이에 의한 프로그래밍(programming by difference)
+### 부모 클래스와 다른 부분만을 추가해서 새로운 클래스를 쉽고 빠르게 만드는 방법
 
+## 상속과 인터페이스
 
+자식 클래스는 부모 클래스가 수신할 수 있는 모든 메시지를 수신 할 수 있다. -> 외부 객체는 자식 클래스를 부모클래스와 동일한 타입으로 간주할 수 있다.  
+ex)
+```
+public Money calculateMovieFee(Screening screening) { 
+    return fee.minus(discountPolicy.calculateDiscountAmount(screening));
+}
+// Movie 클래스에 존재하는 이 메서드는 Movie클래스를 상속받는 모든 클래스에 존재한다.
+```
+### 이처럼 자식 클래스가 부모 클래스를 대신하는 것을 업캐스팅(upcasting)이라고 부른다.
 
+## 다형성
+위에서 언급한 케이스를 예시로 들면. 
+Movie 클래스는 DiscountPolicy에게 메시지를 전송하지만 실제 실행되는 메서드는 PercentDiscount인지 AmountDiscount인지에따라 달라진다.  
+-> 다형성
 
+## 인터페이스와 다형성
+위에서 언급한 상속을 이용한 다형성과는 다르게  
+순수하게 인터페이스만으로 다형성을 구현할 수 있다.
 
+## 추상화의 힘
+DiscoutPolicy는 AmountDiscountPolicy와 PercentDiscountPolicy보다 추상적이다.  
+프로그래밍 언어 측면에서 DiscountPolicy가 더 추상적인 이유는 인터페이스에 초점을 맞췄기 때문.  
+![KakaoTalk_Photo_2021-06-06-16-00-02](https://user-images.githubusercontent.com/60125719/120915735-769e6c80-c6e0-11eb-9240-9a2f7a529e9c.jpeg)
+### 추상화의 장점
+ - 추상화의 계층만 따로 떼어놓고 살펴보면 요구사항의 정책을 높은 수준에서 서술할 수 있다.
+ - 추상화를 이용하면 설계가 좀 더 유연해진다.
+ > 디자인패턴, 프레임워크의 개념도 이 개념을 이용한다.
+ 
+ ## 유연한 설계
+ 
+ ex) 스타워즈
+ ```
+public class Movie {
+    public Money claculateMovieFee(Screening screening) {
+        if (discountPolicy == null) {
+            return fee;
+        }
+        
+        return fee.minus(discountPolicy.calculateDiscountAmount(screening));
+    }
+}
+ ```
+ > 할인 정책이 없는 경우를 예외케이스로 취급하기 때문에 일관성이 무너진다.
+ -> 이 경우에 일관성을 지킬 수 있는 방법은 0원이라는 할인 요금을 계산할 책임을 그대로 DiscountPolicy계층에 유지 시키는 것이다.
+ ```
+ public class NoneDiscountPolicy extends DiscountPolicy {
+     @Override
+     protected Money getDiscountAmount(Screening screening) {
+         return Money.ZERO;
+     }
+ }
+ ```
+ 
+ 이제 Movie의 인스턴스에 NoneDiscountpolicy의 인스턴스를 연결해서 할인되지 않는 영화를 생성할 수 있다.
+ ```
+ Movie starWars = new Movie("스타워즈",
+                            Duration.ofMinutes(210),
+                            Money.wons(10000),
+                            new NoneDiscountPolicy());
+ ```
+ ![KakaoTalk_Photo_2021-06-06-16-13-18](https://user-images.githubusercontent.com/60125719/120916046-258f7800-c6e2-11eb-8d75-402d8b8420c7.jpeg)
+유연성이 필요한 곳에 추상화를 사용하라
 
+## 추상 클래스와 인터페이스 트레이드오프
 
+```
+public interface DiscountPolicy {
+    Money calculateDiscountAmount(Screening screening);
+}
+```
 
+DiscountPolicy -> DefaultDiscountPolicy
+```
+public abstract class DefaultDiscountPolicy implements DiscountPolicy {
+    private List<DiscountCondition> conditions = new ArrayList<>();
 
+    public DefaultDiscountPolicy(DiscountCondition... conditions) {
+        this.conditions = Arrays.asList(conditions);
+    }
 
+    @Override
+    public Money calculateDiscountAmount(Screening screening) {
+        for(DiscountCondition each : conditions) {
+            if (each.isSatisfiedBy(screening)) {
+                return getDiscountAmount(screening);
+            }
+        }
 
+        return Money.ZERO;
+    }
 
+    abstract protected Money getDiscountAmount(Screening Screening);
+}
+```
 
+```
+public class NoneDiscountPolicy implements DiscountPolicy {
+    @Override
+    public Money calculateDiscountAmount(Screening screening) {
+        return Money.ZERO;
+    }
+}
+```
+![KakaoTalk_Photo_2021-06-06-16-22-29](https://user-images.githubusercontent.com/60125719/120916240-68058480-c6e3-11eb-908d-80404772de1b.jpeg)
 
+## 코드 재사용
+### 코드 재사용을 위해서는 상속보다 합성이 더 좋은방법
+> 합성? 다른 객체의 인스턴스를 자신의 인스턴스 변수로 포함해서 재사용하라
+-> 위의 예제에서 Movie가 DiscountPlicy의 코드를 재사용 하는 방법
 
-
-
-
-
+## 상속
+### 상속의 단점
+ - 상속은 캡슐화를 위반한다.
+ - 설계를 유연하지 못하게 만든다.
+ 
+ #### 설계를 유연하지 못하게 만든다의 예시
+ 실행 시점에 금액 할인 정책인 영화를 비율 할인 정책으로 변경한다고 한다면?  
+ 상속을 사용한다면 AmountDiscountMovie의 인스턴스를 PercentDiscountMovie의 인스턴스로 변경해야한다.  
+ 인스턴스 변수로 연결한 기존 방법을 사용한다면?
+ 
+ ```
+public class Movie {
+    private DiscountPolicy discountPolicy;
+    
+    public void changeDiscountPolicy(DiscountPolicy discountPolicy) {
+        this.discountPolicy = discountPolicy;
+    }
+}
+ ```
+ ```
+ Movie avatar = new Movie("아바타", 
+                         Duration.ofMinutes(120),
+                         Money.wons(10000),
+                         new AmoutDiscountPolicy(Money.wons(800), …));
+avatar.changeDiscountPolicy(new PercentDiscountPolicy(0.1 …));
+ ```
+ 
+ ## 합성
+ ### 인터페이스에 정의된 메시지를 통해서만 코드를 재사용하는방법
+ ### 합성은 상속이 지니는 두가지 단점을 모두 해결 할 수 있다.
