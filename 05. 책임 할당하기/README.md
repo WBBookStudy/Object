@@ -213,7 +213,7 @@ public enum DiscountConditionType {
 
 ### DiscountCondition 개선하기
  가장 큰 문제점은 변경에 취약한 클래스를 포함하고 있다는 것이다.  
- 변경에 취약한 클래스란? 코드를 수정해야 하는 이유를 하나 이상 가지는 클래스  
+ 변경에 취약한 클래스란? 코드를 수정해야 하는 이유를 둘 이상 가지는 클래스  
  현재 코드에서는 DiscountCondition이 해당됨. 
   - 새로운 할인 조건 추가
   > isSatisfiedBy 메서드 안의 if ~ else 구분을 수정해야한다. 새로운 할인조건이 새로운 데이터를 요구한다면 DiscountCondition에 속성을 추가하는 작업도 필요하다.
@@ -234,7 +234,7 @@ public enum DiscountConditionType {
    >DisdountCondition클래스의 경우 isSatisfiedBySequence메서드와 isSatisfiedPeriod 메서드가 이 경우에 해당된다. 응집도를 높이기 위해서는 속성 그룹과 해당 그룹에 접근하는 메서드 그룹을 기준으로 코드를 분리해아한다.
    
  #### 클래스 응집도 판단하기(요약정리?)
-  - 클래스가 하나 이상의 이유로 변경되어야 한다.
+  - 클래스가 둘 이상의 이유로 변경되어야 한다.
   - 클래스의 인스턴스를 초기화 하는 시점이 두개 이상이다.
   - 메서드 그룹이 속성 그룹을 사용하는지 여부로 나뉜다.
   
@@ -366,7 +366,7 @@ public class Movie {
 새로운 할인조건을 추가하는 경우에도 구체적인 PeriodCondition과 SequenceCondition의 존재를 감추기때문에 Movie가 영형이 받는 일은 없으며, 오직 DiscountCondition의 인터페이스를 실체화하는 클래스를 추가하는것으로만으로도 확장이 가능하다.  이것을 GRASP에서는 **Protected Variations(변경 보호) 패턴** 이라고 부른다
 
 ### Movie클래스 개선하기
-Movie역시 DiscountCondition과 동일한 문제가 있다. 금액 할인 정책 영화와 비율 할인 정책 영화라는 두 가지 타입을 하나의 클래스 안에 구현하고 있기 때문에 하나 하나 이상의 이유로 변경 될 수 있다.  
+Movie역시 DiscountCondition과 동일한 문제가 있다. 금액 할인 정책 영화와 비율 할인 정책 영화라는 두 가지 타입을 하나의 클래스 안에 구현하고 있기 때문에 하나 둘 이상의 이유로 변경 될 수 있다.  
 Polymorphism패턴을 이용해보자
 
 #### Movie
@@ -468,3 +468,239 @@ public class NoneDiscountMovie extends Movie {
 #### 코드의 구조가 도메인의 구조에 대한 새로운 통찰력을 제공한다.
 ![KakaoTalk_Photo_2021-07-11-15-42-11](https://user-images.githubusercontent.com/60125719/125185226-933d3f80-e25e-11eb-9609-804000affdab.jpeg)
 
+## 책임 주도 설계의 대안
+일단 동작하는 코드를 작성하고 추후에 수정하자.  
+겉으로 보이는 동작은 바꾸지 않은 채 내부 구조를 변경하는것은 리펙토링
+
+### 메서드 응집도
+
+#### ReservationAgency
+```
+public class ReservationAgency {
+    public Reservation reserve(Screening screening, Customer customer,
+                               int audienceCount) {
+        Movie movie = screening.getMovie();
+
+        boolean discountable = false;
+        for(DiscountCondition condition : movie.getDiscountConditions()) {
+            if (condition.getType() == DiscountConditionType.PERIOD) {
+                discountable = screening.getWhenScreened().getDayOfWeek().equals(condition.getDayOfWeek()) &&
+                        condition.getStartTime().compareTo(screening.getWhenScreened().toLocalTime()) <= 0 &&
+                        condition.getEndTime().compareTo(screening.getWhenScreened().toLocalTime()) >= 0;
+            } else {
+                discountable = condition.getSequence() == screening.getSequence();
+            }
+
+            if (discountable) {
+                break;
+            }
+        }
+
+        Money fee;
+        if (discountable) {
+            Money discountAmount = Money.ZERO;
+            switch(movie.getMovieType()) {
+                case AMOUNT_DISCOUNT:
+                    discountAmount = movie.getDiscountAmount();
+                    break;
+                case PERCENT_DISCOUNT:
+                    discountAmount = movie.getFee().times(movie.getDiscountPercent());
+                    break;
+                case NONE_DISCOUNT:
+                    discountAmount = Money.ZERO;
+                    break;
+            }
+
+            fee = movie.getFee().minus(discountAmount).times(audienceCount);
+        } else {
+            fee = movie.getFee().times(audienceCount);
+        }
+
+        return new Reservation(customer, screening, fee, audienceCount);
+    }
+}
+```
+reserve메서드가 너무 길다.. 긴 메서드는 단점이 많다
+ - 어떤 일을 수행하는지 한눈에 파악하기 힘들다. 파악하는 시간이 오래걸린다.
+ - 하나의 메서드 안에서 너무 많은 작업을 처리하기 때문에 변경이 필요할 때 수정해야 할 부분을 찾기 어렵다.
+ - 메서드 내부의 일부 로직만 수정하더라도 메서드의 나머지 부분에서 버그가 발생할 확률이 높다.
+ - 로직의 일부만 재사용하는것이 불가능하다.
+ - 코드를 재사용하는 유일한 방법은 원하는 코드를 복사해서 붙여넣는 것뿐이므로 코드 중복을 초래하기 쉽다.
+
+응집도 높은 메서드는 변경되는 이유가 다 하나여야 한다.  
+객체로 책임을 분배할 때 가장 먼저 할 일은 메서드를 응집도 있는 수준으로 분해하는 것이다.
+
+#### 개선된 ReservationAgency
+```
+public class ReservationAgency {
+    public Reservation reserve(Screening screening, Customer customer,
+                               int audienceCount) {
+        boolean discountable = checkDiscountable(screening);
+        Money fee = calculateFee(screening, discountable, audienceCount);
+        return createReservation(screening, customer, audienceCount, fee);
+    }
+
+    private Money calculateFee(Screening screening, boolean discountable,
+                               int audienceCount) {
+        if (discountable) {
+            return screening.getMovie().getFee()
+                    .minus(calculateDiscountedFee(screening.getMovie()))
+                    .times(audienceCount);
+        }
+
+        return  screening.getMovie().getFee();
+    }
+
+    private Money calculateDiscountedFee(Movie movie) {
+        switch(movie.getMovieType()) {
+            case AMOUNT_DISCOUNT:
+                return calculateAmountDiscountedFee(movie);
+            case PERCENT_DISCOUNT:
+                return calculatePercentDiscountedFee(movie);
+            case NONE_DISCOUNT:
+                return calculateNoneDiscountedFee(movie);
+        }
+
+        throw new IllegalArgumentException();
+    }
+
+    private Money calculateAmountDiscountedFee(Movie movie) {
+        return movie.getDiscountAmount();
+    }
+
+    private Money calculatePercentDiscountedFee(Movie movie) {
+        return movie.getFee().times(movie.getDiscountPercent());
+    }
+
+    private Money calculateNoneDiscountedFee(Movie movie) {
+        return movie.getFee();
+    }
+
+    private Reservation createReservation(Screening screening,
+                                          Customer customer, int audienceCount, Money fee) {
+        return new Reservation(customer, screening, fee, audienceCount);
+    }
+    
+    private boolean isDiscountable(Screening screening) {
+        if (type == DiscountConditionType.PERIOD) {
+            return isSatisfiedByPeriod(screening);
+        }
+
+        return isSatisfiedBySequence(screening);
+    }
+
+    private boolean isSatisfiedByPeriod(Screening screening) {
+        return screening.getWhenScreened().getDayOfWeek().equals(dayOfWeek) &&
+                startTime.compareTo(screening.getWhenScreened().toLocalTime()) <= 0 &&
+                endTime.compareTo(screening.getWhenScreened().toLocalTime()) >= 0;
+    }
+
+    private boolean isSatisfiedBySequence(Screening screening) {
+        return sequence == screening.getSequence();
+    }
+}
+```
+> 메서드 들의 응집도 자체는 높아졌지만 이 메서드들을 담고 있는 ReservationAgency의 응집도는 여전히 낮다. 하지만 변경이 유연해지고 이해하기가 쉬워진다.
+
+### 객체를 자율적으로 만들자
+
+#### DiscountCondition
+```
+public class DiscountCondition {
+    private DiscountConditionType type;
+
+    private int sequence;
+
+    private DayOfWeek dayOfWeek;
+    private LocalTime startTime;
+    private LocalTime endTime;
+
+    public DiscountCondition(int sequence){
+        this.type = DiscountConditionType.SEQUENCE;
+        this.sequence = sequence;
+    }
+
+    public DiscountCondition(DayOfWeek dayOfWeek, LocalTime startTime, LocalTime endTime){
+        this.type = DiscountConditionType.PERIOD;
+        this.dayOfWeek= dayOfWeek;
+        this.startTime = startTime;
+        this.endTime = endTime;
+    }
+
+    public boolean isDiscountable(Screening screening) {
+        if (type == DiscountConditionType.PERIOD) {
+            return isSatisfiedByPeriod(screening);
+        }
+
+        return isSatisfiedBySequence(screening);
+    }
+
+    private boolean isSatisfiedByPeriod(Screening screening) {
+        return screening.getWhenScreened().getDayOfWeek().equals(dayOfWeek) &&
+                startTime.compareTo(screening.getWhenScreened().toLocalTime()) <= 0 &&
+                endTime.compareTo(screening.getWhenScreened().toLocalTime()) >= 0;
+    }
+
+    private boolean isSatisfiedBySequence(Screening screening) {
+        return sequence == screening.getSequence();
+    }
+}
+```
+
+#### 개선된 ReservationAgency
+```
+public class ReservationAgency {
+    public Reservation reserve(Screening screening, Customer customer,
+                               int audienceCount) {
+        boolean discountable = checkDiscountable(screening);
+        Money fee = calculateFee(screening, discountable, audienceCount);
+        return createReservation(screening, customer, audienceCount, fee);
+    }
+
+    private boolean checkDiscountable(Screening screening) { // 체크하기 위해 추가했다.
+        return screening.getMovie().getDiscountConditions().stream()
+                .anyMatch(condition -> condition.isDiscountable(screening));
+    }
+
+    private Money calculateFee(Screening screening, boolean discountable,
+                               int audienceCount) {
+        if (discountable) {
+            return screening.getMovie().getFee()
+                    .minus(calculateDiscountedFee(screening.getMovie()))
+                    .times(audienceCount);
+        }
+
+        return  screening.getMovie().getFee();
+    }
+
+    private Money calculateDiscountedFee(Movie movie) {
+        switch(movie.getMovieType()) {
+            case AMOUNT_DISCOUNT:
+                return calculateAmountDiscountedFee(movie);
+            case PERCENT_DISCOUNT:
+                return calculatePercentDiscountedFee(movie);
+            case NONE_DISCOUNT:
+                return calculateNoneDiscountedFee(movie);
+        }
+
+        throw new IllegalArgumentException();
+    }
+
+    private Money calculateAmountDiscountedFee(Movie movie) {
+        return movie.getDiscountAmount();
+    }
+
+    private Money calculatePercentDiscountedFee(Movie movie) {
+        return movie.getFee().times(movie.getDiscountPercent());
+    }
+
+    private Money calculateNoneDiscountedFee(Movie movie) {
+        return movie.getFee();
+    }
+
+    private Reservation createReservation(Screening screening,
+                                          Customer customer, int audienceCount, Money fee) {
+        return new Reservation(customer, screening, fee, audienceCount);
+    }
+}
+```
