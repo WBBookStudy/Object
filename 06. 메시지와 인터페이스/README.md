@@ -395,3 +395,163 @@ public class Audience {
 +++ 이 외의 예제들을 200 페이지에서 보는것을 추천
 
 
+## 명령-쿼리 분리 원칙(Command-Query Separation)
+- 루틴: 어떤 절차를 묶어 호출 가능하도록 이름을 부여한 기능 모듈
+ - 프로시저: 정해진 절차에 따라 내부의 상태를 변경하는 루틴
+ - 함수: 어떤 절차에 따라 필요한 값을 계산해서 반환하는 루틴의 한 종류
+ - 프로시저는 부수효과를 발생시킬 수 있지만 값을 반환할 수 없다. 
+ - 함수는 값을 반환할 수 있지만 부수효과를 발생시킬 수 없다.
+- 명령과 쿼리는 객체의 인터페이스 측면에서 프로시저와 함수를 부르는 또 다른 이름
+
+##### 명령-쿼리 분리 원칙의 요지는 오퍼레이션은 부수효과를 발생시키는 명령이거나 부수효과를 발생시키지 않는 쿼리 중 하나여야 한다. 어떤 오퍼레이션도 명령인 동시에 쿼리여서는 안된다.
+ - 객체의 상태를 변경하는 명령은 반환값을 가질 수 없다.
+ - 객체의 정보를 반환하는 쿼리는 상태를 변경할 수 없다.
+> 명령 쿼리 분리 원칙에 따라 작성된 객체의 인터페이스를 **명령-쿼리 인터페이스**라고 부른다.
+
+
+### 반복 일정의 명령과 쿼리 분리하기
+
+```
+public class Event {
+    private String subject;
+    private LocalDateTime from;
+    private Duration duration;
+
+    public Event(String subject, LocalDateTime from, Duration duration) {
+        this.subject = subject;
+        this.from = from;
+        this.duration = duration;
+    }
+
+    public boolean isSatisfied(RecurringSchedule schedule) {
+        if (from.getDayOfWeek() != schedule.getDayOfWeek() ||
+                !from.toLocalTime().equals(schedule.getFrom()) ||
+                !duration.equals(schedule.getDuration())) {
+            reschedule(schedule);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void reschedule(RecurringSchedule schedule) {
+        from = LocalDateTime.of(from.toLocalDate().plusDays(daysDistance(schedule)),
+                schedule.getFrom());
+        duration = schedule.getDuration();
+    }
+
+    private long daysDistance(RecurringSchedule schedule) {
+        return schedule.getDayOfWeek().getValue() - from.getDayOfWeek().getValue();
+    }
+}
+```
+> 2019년 5월 8일 수요일 10시 30분부터 11시까지 열리는 회의"를 표현하는 Event의 인스턴스를 만드려면?
+```
+Event meeting = new Event("회의", LocalDateTime.of(2019, 5, 8, 10, 30), Duration.ofMinutes(30));
+```
+
+```
+public class RecurringSchedule {
+    private String subject;
+    private DayOfWeek dayOfWeek;
+    private LocalTime from;
+    private Duration duration;
+
+    public RecurringSchedule(String subject, DayOfWeek dayOfWeek,
+                             LocalTime from, Duration duration) {
+        this.subject = subject;
+        this.dayOfWeek = dayOfWeek;
+        this.from = from;
+        this.duration = duration;
+    }
+
+    public DayOfWeek getDayOfWeek() {
+        return dayOfWeek;
+    }
+
+    public LocalTime getFrom() {
+        return from;
+    }
+
+    public Duration getDuration() {
+        return duration;
+    }
+}
+
+```
+> 매주 수요일 10시 30분부터 30분 동안 열리는 회의를 만들고싶다면?
+```
+RecurringSchedule schedule = new RecurringSchedule("회의", DayOfWeek.WEDNESDAY, LocalTime.of(10,30), Duration.ofMinutes(30));
+```
+
+#### 버그
+```
+RecurringSchedule schedule = new RecurringSchedule("회의", DayOfWeek.WEDNESDAY, LocalTime.of(10,30), Duration.ofMinutes(30));
+Event meeting = new Event("회의", LocalDateTime.of(2019, 5, 8, 10, 30), Duration.ofMinutes(30));
+
+assert meeting.isSatisfied(schedule) == false;
+assert meeting.isSatisfied(schedule) == true;
+```
+> Evnet클래스의 isSatisfied 메서드 문제. 이 메서드는 Event객체의 상태를 수정한다. 
+> isSatisfied 메서드는 Event가 RecurringSchedule에 설정된 조건을 만족하지 못할 경우 Evnet의 상태를 조건을 만족시키도록 변경한 후(여기가 문제) false를 반환한다. 
+> 버그를 찾기 어려웠던 이유는 isSatisfied가 명령과 쿼리의 두 가지 역할을 동시에 수행했기 때문
+
+#### 해결방안
+> 가장 깔끔한 해결책은 명령과 쿼리를 명확하게 분리하는 것.
+
+```
+public class Event {
+    private String subject;
+    private LocalDateTime from;
+    private Duration duration;
+
+    public Event(String subject, LocalDateTime from, Duration duration) {
+        this.subject = subject;
+        this.from = from;
+        this.duration = duration;
+    }
+
+    public boolean isSatisfied(RecurringSchedule schedule) {
+        if (from.getDayOfWeek() != schedule.getDayOfWeek() ||
+                !from.toLocalTime().equals(schedule.getFrom()) ||
+                !duration.equals(schedule.getDuration())) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public void reschedule(RecurringSchedule schedule) {
+        from = LocalDateTime.of(from.toLocalDate().plusDays(daysDistance(schedule)),
+                schedule.getFrom());
+        duration = schedule.getDuration();
+    }
+
+    private long daysDistance(RecurringSchedule schedule) {
+        return schedule.getDayOfWeek().getValue() - from.getDayOfWeek().getValue();
+    }
+}
+
+```
+> 수정 전보다 Event의 상태를 변경하기 위한 인터페이스가 더 복잡해진 것처럼 보이지만 이경우에는 명령과 쿼리를 분리함으로써 얻는 이점이 더 크다.
+
+### 명령-쿼리 분리와 참조 투명성
+쿼리는 객체의 상태를 변경하지 않기 때문에 몇 번이고 반복적으로 호출하더라도 상관이 없다. 명령이 개입하지 않는 한 쿼리의 값은 변경되지 않기 떄문에 쿼리의 결과를 예측하기 쉬워진다. 
+> 참조투명성이란? 어떤 표현식 e가 있을때 모든e를 e의 값으로 변경하더라도 결과가 달라지지 않는 특성
+> ex) f(1) = 3 이면 f(1) + f(1) = 6
+#### 참조 투명성을 만족하는 식은 우리에게 두 가지 장점을 제공함
+1. 모든 함수를 이미 알고 있는 하나의 결과값으로 대체할 수 있기 떄문에 식을 쉽게 계산할 수 있다.
+2. 모든 곳에서 함수의 결과값이 동일하기 때문에 식의 순서를 변경하더라도 각 식의 결과는 달라지지 않는다.
+
+
+### 책임에 초점을 맞춰라
+디미터 법칙을 준수하고 묻지 말고시켜라 스타일을 따르면서도 의도를 드러내는 인터페이스를 설계하는 아주 쉬운 방법이 있다. 메시지를 먼저 선택하고 그 후에 메시지를 처리할 객체를 선택하면 된다.  
+
+메시지를 먼저 선택하는 방식이 디미터법칙, 묻지말고 시켜라 스타일, 의도를 드러내는 인터페이스, 명령-쿼리 분리 원칙에 미치는 긍정적인 영향
+ - 디미터 법칙: 두 객체 사이의 구조적인 결합도를 낮출 수 있다.
+ - 묻지 말고 시켜라: 묻지 말고 시켜라 스타일에 따라 협력을 구조화하게 된다. 
+ - 의도를 드러내는 인터페이스: 메시지를 전송하는 클라이언트 관점에서 메시지의 이름을 정하게 된다. 당연히 그 이름에는 클라이언트가 무엇을 원하는지, 그 의도가 분명하게 드러날 수밖에 없다.
+ - 명령-쿼리 분리 원칙: 메시지를 먼저 선택한다는 것은 협력이라는 문맥 안에서 객체의 인터페이스에 관해 고민한다는 것을 의미한다. 객체가 단순히 어떤 일을 해야 하는지뿐만 아니라 협력 속에서 객체의 상태를 예측하고 이해하기 쉽게 만들기 위한 방법에 관해 소민하게 된다. 따라서 예측 가능한 협력을 만들기 위해 명령과 쿼리를 분리하게 될 것이다.
+
+
+
