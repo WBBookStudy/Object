@@ -43,3 +43,97 @@
   - 메서드: 메시지에 응답하기 위해 실행되는 코드 블록
   - 퍼블릭 인터페이스: 객체가 협력에 참여하기 위해 외부에서 수신할 수 있는 메시지의 묶음
   - 시그니쳐: 오퍼레이션이나 메서드의 명세를 나타낸것. 이름과 인자의 목록을 포함한다.
+
+
+## 인터페이스와 설계 품질
+> 좋은 인터페이스는 **최소한의 인터페이스**와 **추상적인 인터페이스**를 가지고 있어야한다. 이것을 만족하기 위해서 책임주도 설계 방법을 따르자
+
+### 디미터 법칙
+
+```
+public class ReservationAgency {
+    public Reservation reserve(Screening screening, Customer customer,
+                               int audienceCount) {
+        Movie movie = screening.getMovie();
+
+        boolean discountable = false;
+        for(DiscountCondition condition : movie.getDiscountConditions()) {
+            if (condition.getType() == DiscountConditionType.PERIOD) {
+                discountable = screening.getWhenScreened().getDayOfWeek().equals(condition.getDayOfWeek()) &&
+                        condition.getStartTime().compareTo(screening.getWhenScreened().toLocalTime()) <= 0 &&
+                        condition.getEndTime().compareTo(screening.getWhenScreened().toLocalTime()) >= 0;
+            } else {
+                discountable = condition.getSequence() == screening.getSequence();
+            }
+
+            if (discountable) {
+                break;
+            }
+        }
+
+        Money fee;
+        if (discountable) {
+            Money discountAmount = Money.ZERO;
+            switch(movie.getMovieType()) {
+                case AMOUNT_DISCOUNT:
+                    discountAmount = movie.getDiscountAmount();
+                    break;
+                case PERCENT_DISCOUNT:
+                    discountAmount = movie.getFee().times(movie.getDiscountPercent());
+                    break;
+                case NONE_DISCOUNT:
+                    discountAmount = Money.ZERO;
+                    break;
+            }
+
+            fee = movie.getFee().minus(discountAmount).times(audienceCount);
+        } else {
+            fee = movie.getFee().times(audienceCount);
+        }
+
+        return new Reservation(customer, screening, fee, audienceCount);
+    }
+}
+```
+> 이 코드의 가장 큰 단점은 ReservationAgency와 인자로 전달된 Screening과 ReservationAgency 사이의 결합도가 너무 높기 때문에 Screening의 내부 구현을 변경할 때마다 ReservationAgency도 함께 변경된다는 것. 문제의 원인은 ReservationAgency가 Screening뿐만 아니라 Movie와 DiscountCondition에도 직접 접근하기 때문.
+
+![KakaoTalk_Photo_2021-07-16-14-22-12](https://user-images.githubusercontent.com/60125719/125895965-3663e7fe-2053-424f-a24f-fe19f2bc41c8.jpeg)
+> **디미터 법칙**을 이용해 해결하자.
+
+#### 디미터 법칙을 따르기 위해서는 클래스가 특정한 조건을 만족하는 대상에게만 메시지를 전송하도록 프로그래밍해야 한다. 모든 클래스 C와 C에 구현된 모든 메서드 M에 대해서, M이 메시지를 전송할 수 있는 모든 객체는 다음에 서술된 클래스의 인스턴스여야 한다. 이때 M에 의해 생성된 객체나 M이 호출하는 메서드에 의해 생성된 객체, 전역 변수로 선언된 객체는 모두 M의 인자로 간주한다.
+ - M의 인자로 전달된 클래스(C 자체를 포함)
+ - C의 인스턴스 변수 클래스
+
+또는
+ - this 객체
+ - 메서드의 매개변수
+ - this의 속성
+ - this의 속성인 컬렉션의 요소
+ - 메서드 내에 생성된 지역 객체
+ 
+#### 디미터 법칙을 따른  ReservationAgency
+ ```
+ public class ReservationAgency {
+     public Reservation reserve(Screening screening, Customer customer, int audienceCount) {
+         Money fee = screening.calculateFee(audienceCount);
+         return new Reservation(customer, screening, fee, audienceCount);
+     }
+ }
+```
+
+![KakaoTalk_Photo_2021-07-16-14-22-12](https://user-images.githubusercontent.com/60125719/125896966-960ad739-ae2d-4a93-ac00-63212eeef804.jpeg)
+#### 디미터 법칙과 캡슐화
+디미터 법칙은 캡슐화를 다른 관점에서 표현한것. 디미터 법칙이 가치 있는 이유는 클래스를 캡슐화하기 위해 따라야하는 구체적인 지침을 제공하기 때문. 
+##### 디미터 법칙을 위반하는 코드의 전형적인 모습
+```
+screening.getMovie().getDiscountConditions();
+```
+##### 위의 코드를 디미터법칙을 적용한다면
+```
+screening.calculateFee(audienceCount);
+```
+
+### 묻지말고 시켜라
+> 훌륭한 메시지는 객체의 상태에 관해 묻지 말고 원하는 것을 시켜야한다. 절차적인 코드는 정보를 얻은 후에 결정한다. 객체지향 코드는 객체에게 그것을 하도록 시킨다.
+
+
