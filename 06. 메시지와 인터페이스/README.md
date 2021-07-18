@@ -337,5 +337,61 @@ public class Bag {
 ```
 
 
+## 원칙의 함정
+> 설계는 트레이드오프의 산물. 초보자는 원칙을 맹목적으로 추종한다. 원칙이 현재 상황에 부적합하다고 판단된다면 과감하게 원칙을 무시하라.
+
+
+### 디미터 법칙은 하나의 도트(.)를 강제하는 규칙이 아니다.
+ex)
+```
+IntStream.of(1, 15, 20, 3, 9).filter(x -> x > 10).distinct().count();
+```
+> 디미터 법칙을 어긴걸까?
+> 위 코드에서 of, filter, distinct 메서드는 모두 IntStream이라는 동일한 클래스의 인스턴스를 반환함. 즉, 이들은 IntStream의 인스턴스를 또 다른 IntStream의 인스턴스로 변환하므로 이 코드는 디미터 법칙을 위반하지 않는다. 디미터 법칙은 결합도와 관련된 것이며, 이 결합도가 문제가 되는 것은 객체의 내부 구조가 외부로 노출되는 경우로 한정된다. 
+> 이런 종류의 코드와 마주쳐야 하는 순간이 온다면 '과연 여러개의 도트를 사용한 코드가 객체의 내부 구조를 노출하고 있는가?'에 대해 답해보면 된다.
+
+### 결합도와 응집도의 충돌
+일반적으로 어떤 객체의 상태를 물어본 후 반환된 상태를 기반으로 결정을 내리고 그 결정에 따라 객체의 상태를 변경하는 코드는 묻지말고 시켜라 스타일로 변경해야 한다.
+```
+public class Theater {
+    private TicketSeller ticketSeller;
+
+    public Theater(TicketSeller ticketSeller) {
+        this.ticketSeller = ticketSeller;
+    }
+
+    public void enter(Audience audience) {
+        if (audience.getBag().hasInvitation()) {
+            Ticket ticket = ticketSeller.getTicketOffice().getTicket();
+            audience.getBag().setTicket(ticket);
+        } else {
+            Ticket ticket = ticketSeller.getTicketOffice().getTicket();
+            audience.getBag().minusAmount(ticket.getFee()); 
+            ticketSeller.getTicketOffice().plusAmount(ticket.getFee());
+            audience.getBag().setTicket(ticket);
+        }
+    }
+}
+```
+> Theater는 Audience 내부에 포함된 Bag에 대해 질문한 후 반환된 결과를 이용해 Bag의 상태를 변경한다. -> Audience의 캡슐화를 위반
+
+```
+public class Audience {
+ public Long buy(Ticket ticket) {
+  if (bag.hasInvitation()) {
+   bag.setTicket(ticket);
+   return 0L;
+  } else {
+   bag.setTicket(ticket);
+   bag.minusAmount(ticket.getFee());
+   return ticket.getFee();
+  }
+ }
+}
+```
+> 이제 Audience는 상태와 함께 상태를 조작하는 행동도 포함하기 때문에 응집도가 높아졌다. 
+> 이 예제에서 알 수 있는 것처럼 위임 메서드를 통해 객체 내부 구조를 감추는 것은 협력에 참여하는 객체들의 결합도를 낮출 수 있는 동시에 객체의 응집도를 높일 수 있는 가장 효과적인 방법이다.
+
++++ 이 외의 예제들을 200 페이지에서 보는것을 추천
 
 
