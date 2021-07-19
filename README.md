@@ -14,7 +14,6 @@
 [StarUML](https://staruml.io/)을 사용해서 올려주시면 감사하겠습니다.
 
 ## 참여자
-👽 김진호 : [GitHub](https://github.com/kimsox)  
 😎 이한위 : [E-mail]mobiledev@kakao.com, [GitHub](https://github.com/HanweeeeLee)  
 👻 정현기 : [E-mail]jhkman1208@gmail.com
 
