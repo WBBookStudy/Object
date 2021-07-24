@@ -3,13 +3,13 @@
  - 분해(decomposition): 큰 문제를 해결 가능한 작은 문제로 나누는 작업
  
 
-## 1. 프로시저 추상화와 데이터 추상화
+## 01. 프로시저 추상화와 데이터 추상화
 프로그래밍 패러다임은 프로그래밍을 구성하기 위해 사용하는 추상화의 종류와 이 추상화를 이용해 소프트웨어를 분해하는 방법의 두 가지 요소로 결정된다.  
 #### 현대적인 프로그래밍 언어를 특징 짓는 중요한 두 가지 추상화 메커니즘
  - 프로시저 추상화(procedure abstraction): 소프트웨어가 무엇을 해야하는지를 추상화한다. -> 기능 분해 또는 알고리즘 분해
  - 데이터 추상화(data abstraction): 무엇을 알아야 하는지를 추상화한다. -> -> 1. 타입을 추상화 (추상 데이터 타입) 2. 프로시저를 추상화 (객체 지향)
 
-## 2. 프로시저 추상화와 기능 분해
+## 02. 프로시저 추상화와 기능 분해
 ### 메인 함수로서의 시스템
 기능분해(알고리즘 분해)로 추상화.  
 전통적인 기능 분해 방법은 **하향식 접근법(Top-Down Approach)**
@@ -260,7 +260,89 @@ end
 ### 언제 하향식 분해가 유용한가?
 작은 프로그램과 개별 알고리즘을 위해서, 특히 프로그래밍 과정에서 이미 해결된 알고리즘을 문서화하고 서술하는 데는 훌륭한 기법이다.
 
+## 03. 모듈
+### 정보 은닉과 모듈
+함께 변경되는 부분을 하나의 구현 단위로 묶고 퍼블릭 인터페이스를 통해서만 접근하도록 만들어보자. 즉, 기능을 기반으로 시스템을 분해하는 것이 아니라 변경의 방향에 맞춰 시스템을 분해해보자.  
+모듈은 다음과 같은 두 가지 비밀을 감춰야 한다.
+ - 복잡성: 모듈이 너무 복잡한 경우 이해하고 사용하기가 어렵다. 외부에 모듈을 추상화할 수 있는 간단한 인터페이스를 제공해서 모듈의 복잡도를 낮춘다.
+ - 변경 가능성: 변경 가능한 설계 결정이 외부에 노출될 경우 실제로 변경이 발생했을 때 파급효과가 커진다. 변경 발생 시 하나의 모듈만 수정하면 되도록 변경 가능한 설계 결정을 모듈 내부로 감추고 외부에는 쉽게 변경되지 않을 인터페이스를 제공한다.
+
+```
+module Employees
+  $employees = ["직원A", "직원B", "직원C", "아르바이트D", "아르바이트E", "아르바이트F"]
+  $basePays = [400, 300, 250, 1, 1, 1.5]
+  $hourlys = [false, false, false, true, true, true]
+  $timeCards = [0, 0, 0, 120, 120, 120]
+
+  def Employees.calculatePay(name, taxRate)
+    if (Employees.hourly?(name)) then
+      pay = Employees.calculateHourlyPayFor(name, taxRate)
+    else
+      pay = Employees.calculatePayFor(name, taxRate)
+    end
+  end
+
+  def Employees.hourly?(name)
+    return $hourlys[$employees.index(name)]
+  end
+
+  def Employees.calculateHourlyPayFor(name, taxRate)
+    index = $employees.index(name)
+    basePay = $basePays[index] * $timeCards[index]
+    return basePay - (basePay * taxRate)
+  end
+
+  def Employees.calculatePayFor(name, taxRate)
+    return basePay - (basePay * taxRate)
+  end
+  
+  def Employees.sumOfBasePays()
+    result = 0
+    for name in $employees
+      if (not Employees.hourly?(name)) then
+        result += $basePays[$employees.index(name)]
+      end
+    end
+    return result
+  end
+end
 
 
+def main(operation, args={})
+  case(operation)
+  when :pay then calculatePay(args[:name])
+  when :basePays then sumOfBasePays()
+  end
+end
+
+def calculatePay(name)
+  taxRate = getTaxRate()
+  pay = Employees.calculatePay(name, taxRate)
+  puts(describeResult(name, pay))
+end
+
+def getTaxRate()
+  print("세율을 입력하세요: ")
+  return gets().chomp().to_f()
+end
+
+def describeResult(name, pay)
+  return "이름 : #{name}, 급여 : #{pay}"
+end
+
+def sumOfBasePays()
+  puts(Employees.sumOfBasePays())
+end
+
+main(:basePays)
+main(:pay, name:"아르바이트F")
+```
+> ex) 전체 직원에 관한 처리를 Employees 모듈로 캡슐화 한 결과
+
+### 모듈의 장점과 한계
+Employees 예제를 통해 알 수 있는 모듈의 장점은 다음과 같다.
+ - 모듈 내부의 변수가 변경되더라도 모듈 내부에만 영향을 미친다.
+ - 비즈니스 로직과 사용자 인터페이스에 대한 관심사를 분리한다.
+ - 전역 변수와 전역 함수를 제거함으로써 네임스페이스 오염(namespace pollution)을 방지한다.
 
 
