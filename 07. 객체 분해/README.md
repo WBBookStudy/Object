@@ -346,3 +346,100 @@ Employees 예제를 통해 알 수 있는 모듈의 장점은 다음과 같다.
  - 전역 변수와 전역 함수를 제거함으로써 네임스페이스 오염(namespace pollution)을 방지한다.
 
 
+## 04. 데이터 추상화와 추상 데이터 
+### 추상 데이터 타입
+프로그래밍 언어에서 **타입(Type)** 이란 변수에 저장할 수 있는 내용물의 종류와 변수에 적용될 수 있는 연산의 가짓수를 의미한다.  
+추상 데이터 타입을 구현하려면 다음과 같은 특성을 위한 프로그래밍 언어의 지원이 필요하다
+ - 타입 정의를 선언할 수 있어야 한다.
+ - 타입의 인스턴스를 다루기 위해 사용할 수 있는 오퍼레이션의 집함을 정의할 수 있어야 한다.
+ - 제공된 오퍼레이션을 통해서만 조작할 수 있도록 데이터를 외부로부터 보호할 수 있어야 한다.
+ - 타입에 대해 여러 개의 인스턴스를 생성할 수 있어야 한다.
+
+이제 추상 데이터 타입을 이용해 급여 관리 시스템을 개선해보자.  
+
+#### step1
+```
+Employees = Struct.new(:name, :basePay, :hourly, :timeCard) do
+End
+```
+
+#### step2
+```
+Employees = Struct.new(:name, :basePay, :hourly, :timeCard) do
+ def calculatePay(taxRate)
+  if (hourly) then
+   return calculateHourlyPay(taxRate)
+  end
+  return calculateSalariedPay(taxRate)
+ end
+ 
+private
+ def calculateHourlyPay(taxRate)
+  return (basePay * timeCard) - (basePay * timeCard) * taxRate
+ end
+
+def calculateSalariedPay(taxRate)
+ return basePay - (basePay * taxRate)
+end
+
+End
+```
+> Employee 타입의 주된 행동은 직원 유형에 따라 급여를 계산하는 것이므로 calculatePay 오퍼레이션을 추가한다.
+
+#### step3
+```
+Employee = Struct.new(:name, :basePay, :hourly, :timeCard) do
+ def monthlyBasePay()
+  if (hourly) then return 0 end
+  return basePay
+ end
+end
+```
+> Employee 타입에 정의할 두 번째 오퍼레이션은 개별 직원의 기본급을 계산하는 것이다
+
+#### step4
+```
+$employee = [
+ Employee.new("직원A", 400, false, 0),
+ Employee.new("직원A", 300, false, 0),
+ Employee.new("직원C", 250, false, 0),
+ Employee.new("아르바이트D", 1, true, 120),
+ Employee.new("아르바이트E", 1, true, 120),
+ Employee.new("아르바이트F", 1, true, 120)
+]
+```
+> 추상 데이터 타입을 사용하는 클라이언트 코드를 작성하자.
+
+#### step5
+
+```
+def calculatePay(name)
+ taxRate = getTaxRate()
+ for each in $employees
+  if (each.name == name) then employee = each; break end
+ end
+ pay = employee.calculatePay(taxRate)
+ puts(describeResult(name, pay)
+end
+```
+> 특정 직원의 급여를 계산하는 것은 직원에 해당하는 Employee 인스턴스를 찾은 후 calculatePay 오퍼레이션을 호출하는 것이다.
+
+#### step6
+```
+def sumOfBasePays()
+ result = 0
+ for each in $employees
+  result += each.monthlyBasePay()
+ end
+ puts(result)
+end
+```
+> 정규 직원 전체에 대한 기본급 총합을 구하기 위해서는 Employee 인스턴스 전체에 대해 차례로 monthlyBasePay 오퍼레이션을 호출한 후 반환된 값을 모두 더해야 한다.
+
+추상 데이터 타입은 데이터에 대한 관점을 설계의 표면으로 끌어올리기는 하지만 여전히 데이터와 기능을 분리하는 절차적인 설계의 틀에 갇혀있다.  
+Q 클래스는 추상 데이터 타입인가?
+
+
+
+
+
