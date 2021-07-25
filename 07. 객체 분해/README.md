@@ -533,7 +533,7 @@ end
 
 #### 객체지향에서는 타입 변수를 이용한 조건문을 다형성으로 대체한다.
 
-![KakaoTalk_20210718_160602108](https://user-images.githubusercontent.com/60125719/126896862-9fcfa950-ee6e-4b67-9716-6f4e1ebca430.jpg)
+![KakaoTalk_20210725_200537215](https://user-images.githubusercontent.com/60125719/126897095-de3cb66f-0590-4872-b4b3-0a58658c9530.jpg)
 
 객체지향 프로그래밍을 하게되면 기존코드에 아무런 영향도 미치지 않고 새로운 객체 유형과 행위를 추가할 수 있다. 이것을 **개방-폐쇄 원칙(Open-Closed Principle, OCP)** 라고 한다.
 
