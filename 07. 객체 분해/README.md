@@ -441,5 +441,111 @@ Q 클래스는 추상 데이터 타입인가?
 
 
 
+## 05. 클래스
+### 클래스는 추상 데이터 타입인가?
+> 클래스는 상속과 다형성을 지원하는 데 비해 추상 데이터 타입은 지원하지 못한다.
+
+![KakaoTalk_20210725_195201897](https://user-images.githubusercontent.com/60125719/126896577-c801079c-8e10-43af-ba6f-6dd474baf51b.jpg)
+![KakaoTalk_20210725_195201897_01](https://user-images.githubusercontent.com/60125719/126896583-511ca7e8-1db0-492d-ac83-269b0aa96981.jpg)
+
+### 추상 데이터 타입에서 클래스로 변경하기
+
+```
+class Employee
+  attr_reader :name, :basePay
+  
+  def initialize(name, basePay)
+    @name = name
+    @basePay = basePay
+  end
+    
+  def calculatePay(taxRate)
+    raise NotImplementedError
+  end
+  
+  def monthlyBasePay()
+    raise NotImplementedError
+  end
+end
+```
+> Employee class
+
+```
+class SalariedEmployee < Employee
+  def initialize(name, basePay)
+    super(name, basePay)
+  end
+    
+  def calculatePay(taxRate)
+    return basePay - (basePay * taxRate)
+  end
+  
+  def monthlyBasePay()
+    return basePay
+  end
+end
+
+class HourlyEmployee < Employee
+  attr_reader :timeCard
+  def initialize(name, basePay, timeCard)
+    super(name, basePay)
+    @timeCard = timeCard
+  end
+  
+  def calculatePay(taxRate)
+    return (basePay * timeCard) - (basePay * timeCard) * taxRate
+  end
+  
+  def monthlyBasePay()
+    return 0
+  end  
+end
+```
+> Employee를 상속받는 SalariedEmployee / HourlyEmployee
+
+```
+$employees = [
+  SalariedEmployee.new("직원A", 400),
+  SalariedEmployee.new("직원B", 300),
+  SalariedEmployee.new("직원C", 250),
+  HourlyEmployee.new("아르바이트D", 1, 120),
+  HourlyEmployee.new("아르바이트E", 1, 120),
+  HourlyEmployee.new("아르바이트F", 1, 120),
+]
+```
+> 인스턴스 생성
+
+```
+def sumOfBasePays()
+  result = 0
+  for each in $employees
+    result += each.monthlyBasePay()
+  end
+  puts(result)
+end
+```
+> 객체가 어떤 타입의 클래스인지 고민 할 필요가 없다 !
+
+### 변경을 기준으로 선택하라
+> 단순히 클래스를 구현 단위로 사용한다는 것이 객체지향 프로그래밍을 한다는 것을 의미하지는 않는다. 타입을 기준으로 절차를 추상화하지 않았다면 그것은 객체지향 분해가 아니다.
+
+#### 클래스가 추상데이터 타입의 개념을 따르는지 확인할 수 있는 가장 간단한 방법은? 클래스 내부에 인스턴스의 타입을 표현하는 변수가 있는지를 살펴본다.
+
+#### 객체지향에서는 타입 변수를 이용한 조건문을 다형성으로 대체한다.
+
+![KakaoTalk_20210718_160602108](https://user-images.githubusercontent.com/60125719/126896862-9fcfa950-ee6e-4b67-9716-6f4e1ebca430.jpg)
+
+객체지향 프로그래밍을 하게되면 기존코드에 아무런 영향도 미치지 않고 새로운 객체 유형과 행위를 추가할 수 있다. 이것을 **개방-폐쇄 원칙(Open-Closed Principle, OCP)** 라고 한다.
+
+### 협력이 중요하다
+객체지향에서 중요한 것은 역할, 책임, 협력이다. 객체지향은 기능을 수행하기 위해 객체들이 협력하는 방식에 집중한다. 협력이라는 문맥을 고려하지 않고 객체를 고립시킨 채 오퍼레이션의 구현 방식을 타입별로 분배하는 것은 올바른 접근법이 아니다.  
+
+그림 7.6은 객체에게 로직을 분배하는 방법에 있어서 추상 데이터 타입과 클래스의 차이를 보여주기 위한 것이지 객체를 설계하는 방법을 설명한것은 아니다.
+
+
+
+
+
+
 
 
