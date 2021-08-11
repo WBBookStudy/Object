@@ -211,7 +211,7 @@ public class Movie {
 ### new는 해롭다
 왜?
  - new 연산자를 사용하기 위해서는 구체 클래스의 이름을 직접 기술해야 한다. 따라서 new를 사용하는 클라이언트는 추상화가 아닌 구체 클래스에 의존할 수 밖에 없기 때문에 결합도가 높아진다.
- - enw 연산자는 생성하려는 구체 클래스뿐만 아니라 어떤 인자를 이용해 클래스의 생성자를 호출해야하는지도 알아야 한다. 따라서 new를 사용하면 클라이언트가 알아야 하는 지식의 양이 늘어나기 때문에 결합도가 높아진다.
+ - new 연산자는 생성하려는 구체 클래스뿐만 아니라 어떤 인자를 이용해 클래스의 생성자를 호출해야하는지도 알아야 한다. 따라서 new를 사용하면 클라이언트가 알아야 하는 지식의 양이 늘어나기 때문에 결합도가 높아진다.
 
  ```Java
  public class Movie {
@@ -249,7 +249,7 @@ public class Movie {
 Movie avatar = new Movie("아바타",
 	Duration.ofMinutes(120),
 	Money.wons(10000),
-	newAmountDiscountPolicy(Money.wons(800),
+	new AmountDiscountPolicy(Money.wons(800),
 		new SequenceCondition(1),
 		new SequenceCondition(10),
  		new PeriodCondition(DayOfWeek.MONDAY,
