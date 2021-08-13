@@ -593,12 +593,310 @@ public class PersonalPlaylist extends Playlist {
 > 클래스를 상속하면 결합도로 인해 자식 클래스와 부모 클래스의 구현을 영원히 변경하지 않거나, 자식 클래스와 부모 클래스를 동시에 변경하거나 둘 중 하나를 선택할 수밖에 없다.
 
 
+## 03. Phone 다시 살펴보기
+
+### 추상화에 의존하자
+> NightlyDiscountPhone의 가장 큰 문제점은 Phone에 강하게 결합돼 있기 때문에 Phone이 변경될 경우 함께 변경될 가능성이 높다는것
+
+#### 코드 중복을 제거하기 위해 상속을 도입할 때 따르는 두 가지 원칙
+ - 두 메서드가 유사하게 보인다면 차이점을 메서드로 추출하라. 메서드 추출을 통해 두 메서드를 동일한 형태로 보이도록 만들 수 있다.
+ - 부모 클래스의 코드를 하위로 내리지 말고 자식 클래스의 코드를 상위로 올려라. 부모 클래스의 구체적인 메서드를 자식 클래스로 내리는 것보다 자식 클래스의 추상적인 메서드를 부모 클래스로 올리는 것이 재사용성과 응집도 측면에서 더 뛰어난 결과를 얻을 수 있다.
 
 
+### 차이를 메서드로 추출하라
+```Java
+public class Phone {
+    private Money amount;
+    private Duration seconds;
+    private List<Call> calls = new ArrayList<>();
+
+    public Phone(Money amount, Duration seconds) {
+        this.amount = amount;
+        this.seconds = seconds;
+    }
+
+    public void call(Call call) {
+        calls.add(call);
+    }
+
+    public List<Call> getCalls() {
+        return calls;
+    }
+
+    public Money getAmount() {
+        return amount;
+    }
+
+    public Duration getSeconds() {
+        return seconds;
+    }
+
+    public Money calculateFee() {
+        Money result = Money.ZERO;
+
+        for(Call call : calls) {
+            result = result.plus(amount.times(call.getDuration().getSeconds() / seconds.getSeconds()));
+        }
+
+        return result;
+    }
+}
+```
+> 현재 Phone
+
+```Java
+public class NightlyDiscountPhone {
+    private static final int LATE_NIGHT_HOUR = 22;
+
+    private Money nightlyAmount;
+    private Money regularAmount;
+    private Duration seconds;
+    private List<Call> calls = new ArrayList();
+
+    public NightlyDiscountPhone(Money nightlyAmount, Money regularAmount, Duration seconds) {
+        this.nightlyAmount = nightlyAmount;
+        this.regularAmount = regularAmount;
+        this.seconds = seconds;
+    }
+
+    public Money calculateFee() {
+        Money result = Money.ZERO;
+
+        for(Call call : calls) {
+            if (call.getFrom().getHour() >= LATE_NIGHT_HOUR) {
+                result = result.plist(nightlyAmount.times(call.getDuration().getSeconds / seconds.getSeconds()));
+            } else {
+                result = result.plus(regularAmount.times(call.getDuration().getSeconds / seconds.getSeconds()));
+            }
+        }
+
+        return result;
+    }
+}
+```
+> NightlyDiscountPhone
+
+#### 메서드 추출
+
+```Java
+public abstract class Phone {
+    private List<Call> calls = new ArrayList<>();
+
+    public Money calculateFee() {
+        Money result = Money.ZERO;
+
+        for(Call call : calls) {
+            result = result.plus(calculateCallFee(call));
+        }
+
+        return result;
+    }
+
+    protected Money calculateCallFee(Call call) {
+        return amount.times(call.getDuration().getSeconds() / seconds.getSeconds());
+    }
+}
+```
+
+```Java
+public class NightlyDiscountPhone {
+    ...
+    public Money calculateFee() {
+        Money result = Money.ZERO;
+
+        for(Call call : calls) {
+            result = result.plus(calculateCallFee(call));
+        }
+
+        return result;
+    }
+
+    public Money calculateFee() {
+        Money result = Money.ZERO;
+
+        for(Call call : calls) {
+            if (call.getFrom().getHour() >= LATE_NIGHT_HOUR) {
+                result = result.plist(nightlyAmount.times(call.getDuration().getSeconds / seconds.getSeconds()));
+            } else {
+                result = result.plus(regularAmount.times(call.getDuration().getSeconds / seconds.getSeconds()));
+            }
+        }
+
+        return result;
+    }
+    
+}
+```
+
+> 두 클래스의 calculateFee 메서드는 완전히 동일해졌고 추출한 calculateCallFee 메서드 안에 서로 다른 부분을 격리시켜 놓았다. 
+
+### 중복 코드를 부모 클래스로 올려라
+
+```Java
+public abstract class AbstractPhone {}
+
+public class Phone extends AbstractPhone { ... }
+
+public class NightlyDiscountPhone extends AbstractPhone { ... }
+```
+
+```Java
+public abstract class AbstractPhone {
+    private List<Call> calls = new ArrayList<>();
+
+    public Money calculateFee() {
+        Money result = Money.ZERO;
+
+        for(Call call : calls) {
+            result = result.plus(calculateCallFee(call));
+        }
+
+        return result;
+    }
+
+    abstract protected Money calculateCallFee(Call call);
+}
+```
+
+```Java
+public class Phone extends AbstractPhone {
+    private Money amount;
+    private Duration seconds;
+
+    public Phone(Money amount, Duration seconds) {
+        this.amount = amount;
+        this.seconds = seconds;
+    }
+
+    @Override
+    protected Money calculateCallFee(Call call) {
+        return amount.times(call.getDuration().getSeconds() / seconds.getSeconds());
+    }
+}
+```
+
+```Java
+public class NightlyDiscountPhone extends AbstractPhone {
+    private static final int LATE_NIGHT_HOUR = 22;
+
+    private Money nightlyAmount;
+    private Money regularAmount;
+    private Duration seconds;
+
+    public NightlyDiscountPhone(Money nightlyAmount, Money regularAmount, Duration seconds) {
+        this.nightlyAmount = nightlyAmount;
+        this.regularAmount = regularAmount;
+        this.seconds = seconds;
+    }
+
+    @Override
+    protected Money calculateCallFee(Call call) {
+        if (call.getFrom().getHour() >= LATE_NIGHT_HOUR) {
+            return nightlyAmount.times(call.getDuration().getSeconds() / seconds.getSeconds());
+        } else {
+            return regularAmount.times(call.getDuration().getSeconds() / seconds.getSeconds());
+        }
+    }
+}
+```
+
+![KakaoTalk_Photo_2021-08-13-14-48-33](https://user-images.githubusercontent.com/60125719/129310885-03ea450f-771e-4d60-a214-443ea4a45d4c.jpeg)
+
+### 추상화가 핵심이다.
+공통코드를 이동시킨 후에 각 클래스는 서로 다른 변경의 이유를 가지게 된다. Abstract Phone은 전체 통화 목록을 계산하는 방법이 바뀔 경우에만 변경된다. Phone은 일반 요금제의 통화 한건을 계산하는 방식이 바뀔 경우에만 변경된다. NightDiscountPhone은 심야 할인 요금제의 통화 한 건을 계산하는 방식이 바뀔 경우에만 변경된다.  
+또한 새로운 요금제를 추가하기도 쉬우며 추가할 경우 기존의 클래스를 수정할 필요가 없다. (개방-폐쇄의 원칙도 지킨다.)  
+즉 낮은 결합도를 가지게 돼었다. 
+
+### 의도를 드러내는 이름 선택하기
+NightlyDiscountPhone 클래스의 이름은 좋은데 Phone의 이름은 너무 평범함. 바꿔주자. 바꾸는 김에 추상클래스 명도 바꾸자.
+
+```Java
+public abstract class Phone {}
+
+public class RegularPhone extends AbstractPhone { ... }
+
+public class NightlyDiscountPhone extends AbstractPhone { ... }
+```
+
+### 세금 추가하기
+
+```Java
+public abstract class Phone {
+    private double taxRate;
+    private List<Call> calls = new ArrayList<>();
+
+    public Phone(double taxRate) {
+        this.taxRate = taxRate;
+    }
+
+    public Money calculateFee() {
+        Money result = Money.ZERO;
+
+        for(Call call : calls) {
+            result = result.plus(calculateCallFee(call));
+        }
+
+        return result.plus(result.times(taxRate));
+    }
+
+    protected abstract Money calculateCallFee(Call call);
+}
+```
+
+```Java
+public class RegularPhone extends Phone {
+    private Money amount;
+    private Duration seconds;
+
+    public RegularPhone(Money amount, Duration seconds, double taxRate) {
+        super(taxRate);
+        this.amount = amount;
+        this.seconds = seconds;
+    }
+
+    @Override
+    protected Money calculateCallFee(Call call) {
+        return amount.times(call.getDuration().getSeconds() / seconds.getSeconds());
+    }
+}
+```
+
+```Java
+public class NightlyDiscountPhone extends Phone {
+    private static final int LATE_NIGHT_HOUR = 22;
+
+    private Money nightlyAmount;
+    private Money regularAmount;
+    private Duration seconds;
+
+    public NightlyDiscountPhone(Money nightlyAmount, Money regularAmount, Duration seconds, double taxRate) {
+        super(taxRate);
+        this.nightlyAmount = nightlyAmount;
+        this.regularAmount = regularAmount;
+        this.seconds = seconds;
+    }
+
+    @Override
+    protected Money calculateCallFee(Call call) {
+        if (call.getFrom().getHour() >= LATE_NIGHT_HOUR) {
+            return nightlyAmount.times(call.getDuration().getSeconds() / seconds.getSeconds());
+        } else {
+            return regularAmount.times(call.getDuration().getSeconds() / seconds.getSeconds());
+        }
+    }
+}
+```
+
+> 이처럼 기능이 추가되는것이 아닌 인스턴스 변수가 추가가 될 경우엔 클래스의 전반적으로 영향이 갈 수 밖에 없다. 아무리 못해도 최소한 생성자는 바뀔꺼니까.... 하지만 이 방법이 코드의 중복보단 낫다.
 
 
+## 04. 차이에 의한 프로그래밍
 
+위의 예제처럼 기존 코드와 다른 부분만을 추가함으로써 애플리케이션의 기능을 확장하는 방법을 **차이에 의한 프로그래밍(programming by difference)** 라고 한다. 상속을 이용하면 이미 존재하는 클래스의 코드를 쉽게 재사용 할 수 있기 때문에 애플리케이션의 점진적인 정의가 가능해진다.  
 
+코드를. 재사용하는것은 단순히 문자를 타이핑하는 수고를 덜어주는 수준의 문제가 아니다. 재사용 가능한 코드란 심각한 버그가 존재하지 않는 코드다. 따라서 코드를 재사용하면 코드의 품질은 유지하면서도 코드를 작성하는 노력과 테스트는 줄일 수 있다.
+
+![KakaoTalk_Photo_2021-08-13-15-06-08](https://user-images.githubusercontent.com/60125719/129312448-a1a4d9f5-33cf-4514-b439-4ef9026afe75.jpeg)
 
 
 
