@@ -400,6 +400,199 @@ public class NightlyDiscountPhone extends Phone {
 > 자식 클래스의 메서드 안에서 super 참조를 이용해 부모 클래스의 메서드를 직접 호출할 경우 두 클래스는 강하게 결합된다. super 호출을 제거할 수 있는 방법을 찾아 결합도를 제거하라.
 
 
+## 02. 취약한 기반 클래스 문제
+**취약한 기반 클래스 문제(Fragile Base Class Problem)** : 부모 클래스의 변경에 의해 자식 클래스가 영향을 받는 현상.  
+취약한 기반 클래스의 문제는 캡슐화를 약화시키고 결합도를 높힌다. 객체지향의 기반은 캡슐화를 통한 변경의 통제란걸 기억하자.  
+
+### 불필요한 인터페이스 상속 문제
+![KakaoTalk_Photo_2021-08-13-13-12-27](https://user-images.githubusercontent.com/60125719/129303900-3f420ded-81b9-4d69-91a2-1333252030e5.jpeg)
+> 자바의 초기버전에서 상속을 잘못한 대표적인 사례.
+Stack 이 Vector를 상속받기 때문에 Stack의 퍼블릭 인터페이스에 Vector의 퍼블릭 인터페이스가 합쳐졌다.
+
+```Java
+Stack<String> stack = new Stack<>();
+stack.push("1")
+stack.push("2")
+stack.push("3")
+
+stack.add(0, "4");
+
+assertEquals("4", stack.pop()); // fail
+```
+> 덕분에 위의 테스트가 실패하며, 실제 코드상에서 예상치 못한 버그가 생길 수 있다.
+
+![KakaoTalk_Photo_2021-08-13-13-16-25](https://user-images.githubusercontent.com/60125719/129304178-626e5c57-c6a1-4627-9294-bdd577b8f297.jpeg)
+> 제네릭이 도입되기 이전에 만들어졌기 떄문에 컴파일러가 키와 값의 타입이 String인지 여부를 체크 할 수 있는 방법이 없다.
+```Java
+Properties properties = new Properties()
+properties.setProperty("Bjarne Stroustrup", "C++");
+properties.setProperty("James Gosling", "Java");
+
+properties.put("Dennis Ritchie", 67);
+
+assertEquals("C", properties.getProperty("Dennis Ritchie")); // fail
+
+```
+> 메서드가 반환할 값의 타입이 String이 아닐 경우 null을 반환하도록 구현돼어 있기 때문
+
+#### 상속을 위한 경고2
+> 상속받은 부모 클래스의 메서드가 자식 클래스의 내부 구조에 대한 규칙을 꺠트릴 수 있다.
+
+### 메서드 오버라이딩의 오작용 문제
+
+```Java
+public class InstrumentedHashSet<E> extends HashSet<E> {
+    private int addCount = 0;
+
+    public InstrumentedHashSet() {
+    }
+
+    public InstrumentedHashSet(int initCap, float loadFactor) {
+        super(initCap, loadFactor);
+    }
+
+    @Override
+    public boolean addAll(Collection<? extends E> c) {
+        addCount += c.size();
+        return super.addAll(c);
+    }
+
+    public int getAddCount() {
+        return addCount;
+    }
+}
+
+```
+
+```Java
+InstrumentedHashSet<String> languages = new InstrumentedHashSet<>();
+languages.addAll(Arrays.asList("Java", "Ruby", "Scala"));
+```
+> addCount의 갯수가 6이 되버린다. 이유는? 부모 클래스인 HashSet의 addAll 메서드 안에서 add 메서드를 실행시키기 떄문!  
+> 이 문제를 해결할 수 있는 방법은 InstrumentedHashSet의 addAll 메서드를 제거하는것.
+
+
+```Java
+public class InstrumentedHashSet<E> extends HashSet<E> {
+    private int addCount = 0;
+
+    public InstrumentedHashSet() {
+    }
+
+    public InstrumentedHashSet(int initCap, float loadFactor) {
+        super(initCap, loadFactor);
+    }
+
+    @Override
+    public boolean add(E e) {
+        addCount++;
+        return super.add(e);
+    }
+
+    @Override
+    public boolean addAll(Collection<? extends E> c) {
+        boolean modified = false;
+        for (E e : c)
+            if (add(e))
+                modified = true;
+        return modified;
+    }
+
+    public int getAddCount() {
+        return addCount;
+    }
+}
+```
+> 해결은 한듯 하지만 오버라이딩 된 addAll 메서드의 구현이 HashSet과 동일해져 버렸다. -> 코드가 중복됨
+
+#### 상속을 위한 경고3
+> 자식 클래스가 부모 클래스의 메서드를 오버라이딩 할 경우 부모 클래스가 자신의 메서드를 사용하는 방법에 자식 클래스가 결합될 수 있다.
+
+#### 설계는 트레이드오프 활동이다. 상속은 코드 재사용을 위해 캡슐화를 희생한다. 완벽한 캡슐화를 원한다면 코드 재사용을 포기하거나 상속 이외의 다른 방법을 사용해야 한다.
+
+### 부모 클래스와 자식 클래스의 동시 수정 문제
+
+```Java
+public class Song {
+    private String singer;
+    private String title;
+
+    public Song(String singer, String title) {
+        this.singer = singer;
+        this.title = title;
+    }
+
+    public String getSinger() {
+        return singer;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+}
+```
+
+```Java
+public class Playlist {
+    private List<Song> tracks = new ArrayList<>();
+
+    public void append(Song song) {
+        getTracks().add(song);
+    }
+
+    public List<Song> getTracks() {
+        return tracks;
+    }
+}
+```
+
+```Java
+public class PersonalPlaylist extends Playlist {
+    public void remove(Song song) {
+        getTracks().remove(song);
+    }
+}
+
+```
+
+**요구사항 변경**: Playlist에서 노래의 목록뿐만 아니라 가수별 노래의 제목도 함께 관리해야한다.
+
+```Java
+public class Playlist {
+    private List<Song> tracks = new ArrayList<>();
+    private Map<String, String> singers = new HashMap<>();
+
+    public void append(Song song) {
+        tracks.add(song);
+        singers.put(song.getSinger(), song.getTitle());
+    }
+
+    public List<Song> getTracks() {
+        return tracks;
+    }
+
+    public Map<String, String> getSingers() {
+        return singers;
+    }
+}
+```
+> 안타깝게도 위 수정 내용이 정상적으로 동작하려면 PersonalPlaylist의 remove 메서드도 함께 수정해야한다.
+
+```Java
+public class PersonalPlaylist extends Playlist {
+    public void remove(Song song) {
+        getTracks().remove(song);
+        getSingers().remove(song.getSinger());
+    }
+}
+
+```
+> 자식 클래스가 부모 클래스의 메서드를 오버라이딩하거나 불필요한 인터페이스를 상속받지 않았음에도 부모 클래스를 수정할 때 자식 클래스를 함께 수정해야 할 수도 있다.
+
+#### 상속을 위한 경고4
+> 클래스를 상속하면 결합도로 인해 자식 클래스와 부모 클래스의 구현을 영원히 변경하지 않거나, 자식 클래스와 부모 클래스를 동시에 변경하거나 둘 중 하나를 선택할 수밖에 없다.
+
+
 
 
 
