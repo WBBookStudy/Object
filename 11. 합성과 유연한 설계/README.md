@@ -758,10 +758,122 @@ Phone phone = new Phone(new RateDiscountablePolicy(Money.wons(1000), new Taxable
 ### 객체 합성이 클래스 상속보다 더 좋은 방법이다.
 객체 합성이 코드를 재사용하면서도 건전한 결합도를 유지할 수 있는 더 좋은 방법이다.
 
+## 04. 믹스인
+객체를 생성할 떄 코드 일부를 클래스 안에 섞어 넣어 재사용하는 기법. 합성이 실행 시점에 객체를 조합하는 재사용 방법이라면 믹스인은 컴파일 시점에 필요한 코드 조각을 조합하는 재사용 방법이다.  
+
+### 기본 정책 구현하기
+
+```Scala
+abstract class BasicRatePolicy {
+  def calculateFee(phone: Phone): Money = phone.calls.map(calculateCallFee(_)).reduce(_ + _)
+  
+  protected def calculateCallFee(call: Call): Money;
+}
+```
+> 기본 정책에 속하는 전체 요금제 클래스들이 확장할 수 있도록 추상 클래스로 구현한다.
+
+```Scala
+class RegularPolicy(val amount: Money, val seconds: Duration) extends BasicRatePolicy {
+  override protected def calculateCallFee(call: Call): Money = amount * (call.duration.getSeconds / seconds.getSeconds)
+}
+```
+> 표준 요금제를 구현하는 RegularPolicy는 BasicRatePolicy를 상속받아 개별 Call의 요금을 계산하는 calculateCallFee 메서드를 오버라이딩한다.
+
+```Scala
+class NightlyDiscountPolicy(
+    val nightlyAmount: Money,  
+    val regularAmount: Money,
+    val seconds: Duration) extends BasicRatePolicy {   
+  
+  override protected def calculateCallFee(call: Call): Money =
+    if (call.from.getHour >= NightltDiscountPolicy.LateNightHour) {
+      nightlyAmount * (call.duration.getSeconds / seconds.getSeconds)
+    } else {
+      regularAmount * (call.duration.getSeconds / seconds.getSeconds)
+    }
+}
+
+object NightltDiscountPolicy {
+  val LateNightHour: Integer = 22
+}
+```
+> 요놈도 동일
+
+### 트레이트로 부가 정책 구현하기
+
+```Scala
+trait TaxablePolicy extends BasicRatePolicy {
+  val taxRate: Double
+  override def calculateFee(phone: Phone): Money = {
+    val fee = super.calculateFee(phone)
+    return fee + fee * taxRate
+  }
+}
+```
+ - TaxablePolicy 트레이트가 BasicRatePolicy를 확장한다는 점을 주목하자. 이것은 상속의 개념이 아니라 TaxablePolicy가 BasicRatePolicy나 BasicRatePolicy를의 자속에 해당하는 경우에만 믹스인 될 수 있다는것을 의미한다.
+ - 부가 정책은 항상 기본 정책의 처리가 완료된 후에 실행되어야 한다. -> TaxablePolicy는 BasicRatePolicy의 요금 계산이 끝난 후 결과로 반환된 요금에 세금을 부과해야한다.
+ - 이것은 상속을 받는것이 아닌 TaxablePolicy가 사용될 수 있는 문맥을 제한할 뿐이다.
+ - 상속은 정적이지만 믹스인은 동적이다. 코드를 작성하는 시점에서 부모-자식 클래스의 관계를 확정짓는것이 아니다.
+
+```Scala
+trait RateDiscountablePolicy extends BasicRatePolicy {
+  val discountAmount: Money
+  
+  override def calculateFee(phone: Phone): Money = {
+    val fee = super.calculateFee(phone)
+    fee - discountAmount
+  }  
+}
+```
+> 두번쨰 부가정책인 비율 할인 정책
+
+### 부가 정책 트레이트 믹스인하기
+
+```Scala
+class TaxableRegularPolicy(amount: Money, seconds: Duration, val taxRate: Double) 
+  extends RegularPolicy(amount, seconds) 
+  with TaxablePolicy
+  
+class TaxableNightlyDiscountPolicy(nightlyAmount: Money, regularAmount: Money, seconds: Duration, val taxRate: Double) 
+  extends NightlyDiscountPolicy(nightlyAmount, regularAmount, seconds) 
+  with TaxablePolicy
+
+class RateDiscountableRegularPolicy(amount: Money, seconds: Duration, val discountAmount: Money)    
+  extends RegularPolicy(amount, seconds) 
+  with RateDiscountablePolicy
+
+class RateDiscountableNightlyDiscountPolicy(nightlyAmount: Money, regularAmount: Money, seconds: Duration, val discountAmount: Money)    
+  extends NightlyDiscountPolicy(nightlyAmount, regularAmount, seconds) 
+  with RateDiscountablePolicy
+```
+> 스칼라는 트레이트를 클래스나 다른 트레이트에 믹스인할 수 있도록 extends와 with 키워드를 제공한다. 믹스인하려는 대상 클래스와 부모 클래스가 존재하는 경우 부모 클래스는 extends를 이용해 상속받고 트레이트는 with를 이용해 믹스인해야한다. 
+
+![KakaoTalk_Photo_2021-08-30-21-25-04](https://user-images.githubusercontent.com/60125719/131338540-2f7ba97a-f74e-465d-88ad-71a61e859799.jpeg)
 
 
+#### 만일 RegularPolicy의 calculateFee 메서드가 실행된 후 결과에 TaxablePolicy 트레이트를 적용하고 마지막으로 RateDiscountPolicy 트레이트를 적용하려면?
 
+![KakaoTalk_Photo_2021-08-30-21-28-56](https://user-images.githubusercontent.com/60125719/131338991-6701d62b-9745-4faf-a92b-c5c86e5fb298.jpeg)
 
+```Scala
+class RateDiscountableAndTaxableRegularPolicy(
+    amount: Money, 
+    seconds: Duration, 
+    val discountAmount: Money,
+    val taxRate: Double)
+  extends RegularPolicy(amount, seconds)
+  with TaxablePolicy 
+  with RateDiscountablePolicy
+  
+class TaxableAndRateDiscountableRegularPolicy(
+    amount: Money, 
+    seconds: Duration, 
+    val discountAmount: Money,
+    val taxRate: Double)
+  extends RegularPolicy(amount, seconds) 
+  with RateDiscountablePolicy 
+  with TaxablePolicy
+```
 
 
 
