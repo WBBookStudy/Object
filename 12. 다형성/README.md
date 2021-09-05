@@ -12,8 +12,8 @@
 다형성은 여러 타입을 대상으로 동작할 수 있는 코드를 작성할 수 있는 방법이다.
 ![polymorphism](https://user-images.githubusercontent.com/50142323/132130858-371b11b9-cff4-4276-b42d-3853bc34b910.jpeg)
 
- - 오버로딩 다형성
-  - 하나의 클래스 안에 동일한 이름의 메서드가 존재하는 경우
+> 오버로딩 다형성
+ - 하나의 클래스 안에 동일한 이름의 메서드가 존재하는 경우
 ```Java
 public class Money {
     public String plus(Money amount) { ... }
@@ -21,5 +21,4 @@ public class Money {
     public String plus(long amount) { ... }
 }
 ```
- - 강제 다형성
-  - 자동적인 타입 변환 방식
+ - 강제 다형성 - 자동적인 타입 변환 방식 ex) + 의 경우 피연산자가 모두 정수일 경우에는 덧셈 연산자로 동작하지만 하나는 정수형이고 다른 하나는 문자열일경우 연결 연산자로 동작한다
