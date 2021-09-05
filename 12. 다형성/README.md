@@ -49,5 +49,18 @@ public class Movie {
 ## 02. 상속의 양면성
  - 객체지향 패러다임의 근간을 이루는 아이디어는 데이터와 행동을 객체라고 불리는 하나의 실행 단위 안으로 통합하는 것이다. 따라서 객체지향 프로그램을 작성하기 위해서는 항상 데이터와 행동이라는 두 가지 관점을 함께 고려해야 한다.
 ### 02-1 데이터 관점의 상속
- - 이용하면 부모 클래스에서 정의한 모든 데이터를 자식 클래스의 인스턴스에 자동으로 포함 시킬 수 있다.
+ - 상속을 이용하면 부모 클래스에서 정의한 모든 데이터를 자식 클래스의 인스턴스에 자동으로 포함 시킬 수 있다.
+```Java
+public class Lecture {
+    private int pass;
+    private String title;
+    private List<Integer> scores = new ArrayList<>();
+  
+    public Lecture(String title, int pass, List<Integer> scores) {
+        this.title = title;
+        this.pass = pass;
+        this.scores = scores;
+    }
+}
+```
 
