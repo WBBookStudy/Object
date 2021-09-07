@@ -48,19 +48,177 @@ public class Movie {
 
 ## 02. 상속의 양면성
  - 객체지향 패러다임의 근간을 이루는 아이디어는 데이터와 행동을 객체라고 불리는 하나의 실행 단위 안으로 통합하는 것이다. 따라서 객체지향 프로그램을 작성하기 위해서는 항상 데이터와 행동이라는 두 가지 관점을 함께 고려해야 한다.
-### 02-1 데이터 관점의 상속
- - 상속을 이용하면 부모 클래스에서 정의한 모든 데이터를 자식 클래스의 인스턴스에 자동으로 포함 시킬 수 있다.
 ```Java
 public class Lecture {
-    private int pass;
-    private String title;
-    private List<Integer> scores = new ArrayList<>();
-  
+    private int pass; // 이수여부 판단할 기준 점수
+    private String title; // 과목명
+    private List<Integer> scores = new ArrayList<>(); // 학생들의 성적 리스트
+
     public Lecture(String title, int pass, List<Integer> scores) {
         this.title = title;
         this.pass = pass;
         this.scores = scores;
     }
+
+    public double average() {
+        return scores.stream().mapToInt(Integer::intValue).average().orElse(0);
+    }
+
+    public List<Integer> getScores() {
+        return Collections.unmodifiableList(scores);
+    }
+
+    public String evaluate() {
+        return String.format("Pass:%d Fail:%d", passCount(), failCount());
+    }
+
+    private long passCount() {
+        return scores.stream().filter(score -> score >= pass).count();
+    }
+
+    private long failCount() {
+        return scores.size() - passCount();
+    }
 }
 ```
+> 수강생들의 성적을 계산하는 Lecture 클래스이다.
+
+```Java
+Lecture lecture = new Lecture("객체지향 프로그래밍", 70, Arrays.asList(81, 95, 75, 50,45));
+String evaluration = lecture.evaluate(); // 결과 => "Pass:3, Fail:2"
+```
+> 이수 기준 70점인 '객체지향 프로그래밍'과목의 수강생 5명의 대한 설정 통계를 구하는 코드.
+
+```Java
+public class GradeLecture extends Lecture {
+    private List<Grade> grades;  //등급별 통계를 추가하기 위해 인스턴스변수 선언
+
+    public GradeLecture(String name, int pass, List<Grade> grades, List<Integer> scores) {
+        super(name, pass, scores);
+        this.grades = grades;
+    }
+}
+```
+> Lecture클래스에는 새로운 기능을 구현하는데 필요한 대부분의 데이터와 메서드를 포함하고 있기에, Lecture클래스를 상속받으면 새로운 기능을 빠르고 쉽게 추가할수 있다.
+> 등급별 통계를 추가하기 위해 Grade 인스턴스들을 리스트로 보관하는 인스턴스 변수 Grades를 추가.
+
+```Java
+public class Lecture {
+    private String name;         //등급 이름
+    private int upper, lower;    //최대, 최소 성적
+
+    private Grade(String name, int upper, int lower){
+        this.name = name;
+        this.upper = upper;
+        this.lower = lower;
+    }
+    
+    public String getName(){
+        return name;
+    }
+    
+    public boolean isName(String name){
+        return this.name.equals(name);
+    }
+    
+    public boolean include(int score){
+        return score >= lower && score <= upper;
+    }
+    
+}
+```
+> 등급의 이름과 각 등급범위를 정의하는 최소 성적과 최대성적을 인스턴스변수로 포함한다.
+> include메소드는 수강생의 성적이 등급에 포함되는지 체크한다.
+
+
+```Java
+public class GradeLecture extends Lecture {
+    private List<Grade> grades;  //등급별 통계를 추가하기 위해 인스턴스변수 선언
+
+    public GradeLecture(String name, int pass, List<Grade> grades, List<Integer> scores) {
+        super(name, pass, scores);
+        this.grades = grades;
+    }
+    
+    @Override
+    public String evaluate() {
+        return super.evaluate() + ", " + gradesStatistics();
+    }
+    
+    private String gradesStatistics() {
+        return grades.stream().map(grade -> format(grade)).collect(joining(" "));
+    }
+
+    private String format(Grade grade) {
+        return String.format("%s:%d", grade.getName(), gradeCount(grade));
+    }
+
+    private long gradeCount(Grade grade) {
+        return getScores().stream().filter(grade::include).count();
+    }
+}
+```
+> 학생들의 이수 여부와 등급별 통계를 함께 반환하도록 evaluate 메소드를 재정의
+> 일반적으로 super는 자식클래스 내부에서 부모클래스의 인스턴스 변수다 메서드에 접근하는데 사용한다 라는 정도로만 이해해두자.(엄밀히 말하자면 가시성이 private인 경우에는 접근이 불가하다)
+> 메서드 오버라이딩 -> 자식클래스 안에 상속받은 메서드와 동일한 시그니처의 메서드를 재정의해서 부모 클래스의 구현을 새로운 구현으로 대체하는것
+
+```Java
+Lecture lecture = new GradeLecture("객체지향 프로그래밍", 
+                                    70, 
+                                    Arrays.asList(new Grade("A",100,95),
+                                                  new Grade("B",94,80),
+                                                  new Grade("C",79,70),
+                                                  new Grade("D",69,50),
+                                                  new Grade("E",49,0)),
+                                    Arrays.asList(81, 95, 75, 50,45));
+String evaluration = lecture.evaluate(); // 결과 => "Pass:3, Fail:2"
+```
+> GradeLecture클래스의 인스턴스 변수에게 evaluate 메시지를 전송하면 Lecture의 evaluate메서드를 오버라이딩 한 GradeLecture의 evaluate메서드가 실행된다.
+
+```Java
+public class GradeLecture extends Lecture {
+    public double average(String gradeName) {   //등급별 평균 성적을 구하는 average메서드를 추가
+        return grades.stream()
+                .filter(each -> each.isName(gradeName))
+                .findFirst()
+                .map(this::gradeAverage)
+                .orElse(0d);
+    }
+
+    private double gradeAverage(Grade grade) {
+        return getScores().stream()
+                .filter(grade::include)
+                .mapToInt(Integer::intValue)
+                .average()
+                .orElse(0);
+    }
+}
+```
+> 부모클래스에는 없던 새로운 클래스를 추가하는것도 가능하다.
+> 부모인 Lecture클래스에 정의된 average 메서드와는 시그니처가 다르기에 GradeLecture클래스의 average메서드는 Lecture클래스에 정의된 average 메서드를 대체하지 않으며 서로 공존할수 있다
+> 메서드 오버로딩 -> 부모클래스에서 정의한 메서드와 이름은 동일하지만 시그니처는 다른 메서드를 자식클래스에 추가하는것
+
+
+### 02-1. 데이터 관점의 상속
+ - 자식 클래스의 인스턴스는 자동으로 부모 클래스에서 정의한 모든 인스턴스 변수를 내부에 포함하게 되는것.
+
+```Java
+Lecture lecture = new Lecture("객체지향 프로그래밍", 70, Arrays.asList(81, 95, 75, 50,45));
+```
+> Lecture의 인스턴스를 생성한것이다.
+```Java
+Lecture lecture = new GradeLecture("객체지향 프로그래밍",
+                                    70, 
+                                    Arrays.asList(new Grade("A", 100, 95),
+                                                  new Grade("B", 94, 80),
+                                                  new Grade("C", 79, 70),
+                                                  new Grade("D", 69, 50),
+                                                  new Grade("F", 49, 0)),
+                                    Arrays.asList(81, 95, 75, 50, 45));
+```
+> 이번에는 GradeLecture의 인스턴스를 생성한것이다. 이를 데이터 관점에서 표현하자면
+![001](https://user-images.githubusercontent.com/50142323/132384731-3a01535c-0690-41a3-a743-f86215fe9839.png)
+> 결국 자식인 GradeLecture클래스의 인스턴스는 자동으로 부모인 Lecture클래스의 인스턴스변수를 내부에 포함하게 되는것이다.
+
+### 02-2. 행동 관점의 상속
 
