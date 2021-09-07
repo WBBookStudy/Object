@@ -260,3 +260,4 @@ GradeLecture gradeLecture = (GradeLecture) lecture;    //다운캐스팅
    * 실행될 메서드를 런타임에 결정하는 방식을 동적 바인딩(dynamic binding), 지연 바인딩(late binding) 이라고 부른다.
    * 실행 시점에 어떤 클래스의 인스턴스에 메시지를 전달하는지 알아야 실제 실행되는 메서드를 알 수 있다.
 
+
