@@ -55,10 +55,10 @@ public class GradeLecture extends Lecture {
 
 ![004](https://user-images.githubusercontent.com/50142323/132522722-be1faf5a-27d6-4bf1-ac44-64e093ef9beb.png)
 
- 1.self 참조는 GradeLecture 인스턴스를 가리키도록 설정되고 탐색은 GradeLecture 부터 시작한다.\
- 2.GradeLecture 클래스에는 stats 메세지를 처리할 메서드가 없기 때문에 부모 클래스인 Lecture 에서 메서드 탐색을 계속 하다가, Lecture 에서 stats 메서드를 발견하고 실행한다.\
- 3.실행 중에, self 참조가 가리키는 getEvaluationMethod 메세지를 전송하는 구문과 마주친다.\
- 4.메서드 탐색은 self 참조가 가리키는 객체에서 다시 시작하게 된다.
+ 1. self 참조는 GradeLecture 인스턴스를 가리키도록 설정되고 탐색은 GradeLecture 부터 시작한다.\
+ 2. GradeLecture 클래스에는 stats 메세지를 처리할 메서드가 없기 때문에 부모 클래스인 Lecture 에서 메서드 탐색을 계속 하다가, Lecture 에서 stats 메서드를 발견하고 실행한다.\
+ 3. 실행 중에, self 참조가 가리키는 getEvaluationMethod 메세지를 전송하는 구문과 마주친다.\
+ 4. 메서드 탐색은 self 참조가 가리키는 객체에서 다시 시작하게 된다.
  
 > self 전송이 깊은 상속 계층과 계층 중간중간에 함정처럼 숨겨져있는 메서드 오버라이딩과 만나면 극단적으로 이해하기 어려운 코드가 만들어지게 된다.
 
