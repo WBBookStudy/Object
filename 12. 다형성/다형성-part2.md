@@ -52,6 +52,7 @@ public class GradeLecture extends Lecture {
 }
 ```
 >GradeLecture 에 stats 메시지를 전송하게 된다면
+
 ![004](https://user-images.githubusercontent.com/50142323/132522722-be1faf5a-27d6-4bf1-ac44-64e093ef9beb.png)
  1.self 참조는 GradeLecture 인스턴스를 가리키도록 설정되고 탐색은 GradeLecture 부터 시작한다.
  2.GradeLecture 클래스에는 stats 메세지를 처리할 메서드가 없기 때문에 부모 클래스인 Lecture 에서 메서드 탐색을 계속 하다가, Lecture 에서 stats 메서드를 발견하고 실행한다.
