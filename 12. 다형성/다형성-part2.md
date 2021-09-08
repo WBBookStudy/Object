@@ -166,11 +166,11 @@ var grade_lecture = new GradeLecture("OOP", false, [1, 2, 3]);
 grade_lecture.stats();
 ```
 >stats매시지를 전송하면\
->1.GradeLecturedp stats매서드가 존재하는지 검사한다.\
->2.GradeLecture에는 stats메서드가 없기에 다시 prototype을 따라 Lecture의 인스턴스에 접근 후 stats 메서드가 있는지 검사하고 stats를 발견하고 메서드를 실행한다.\
->3.Lecture의 stats메서드를 실행하는 도중에 this.getEvaluationMethod()를 발견한다.\
->4.상속과 마찬가지로 self참조가 가리키는 현재객체에서부터 다시 메서드 탐색을 실행하게 된다.\
->5.현재 객체의 prototype이 참조하는 GradeLecture의 인스턴스에서 getEvaluationMethod메서드를 발견하고 이 메서드를 실행함으로서 탐색이 종료된다.
+>1. GradeLecturedp stats매서드가 존재하는지 검사한다.\
+>2. GradeLecture에는 stats메서드가 없기에 다시 prototype을 따라 Lecture의 인스턴스에 접근 후 stats 메서드가 있는지 검사하고 stats를 발견하고 메서드를 실행한다.\
+>3. Lecture의 stats메서드를 실행하는 도중에 this.getEvaluationMethod()를 발견한다.\
+>4. 상속과 마찬가지로 self참조가 가리키는 현재객체에서부터 다시 메서드 탐색을 실행하게 된다.\
+>5. 현재 객체의 prototype이 참조하는 GradeLecture의 인스턴스에서 getEvaluationMethod메서드를 발견하고 이 메서드를 실행함으로서 탐색이 종료된다.
 
 ![007](https://user-images.githubusercontent.com/50142323/132535157-fca52c8e-ba7b-4de9-a0f7-570d087a2fc1.jpeg)
 
