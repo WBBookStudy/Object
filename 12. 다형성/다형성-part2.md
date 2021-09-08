@@ -1,4 +1,4 @@
-> 이전 04장 항목 초반부가 중복되는 부분이 있음
+> 이전 작성글 중 04장 항목 초반부가 중복되는 부분이 있음
 
 ## 04. 동적 메서드 탐색과 다형성
 객체지향 시스템은 다음과 같은 규칙으로 실행할 메서드를 선택한다
@@ -140,3 +140,39 @@ Lecture.prototype.getEvaluationMethod = function() {
   return "Pass or Fail"
 }
 ```
+>자바스크립트의 인스턴스는 메시지를 수신하면 먼저 메시지를 수신한 객체의 prototype 안에서 메시지에 응답할 적절한 메서드가 있는지 검사한다.\
+>만약 메서드가 존재하지 않는다면 prototype이 가리키는 객체를 따라 메시지 처리를 자동적으로 위임한다.\
+>자바스크립트에서는 prototype 체인으로 연결된 객체 사이에 메시지를 위임함으로써 상속을 구현할 수 있다.
+
+```JavaScript
+function GradeLecture(name, canceled, scores) {
+  Lecture.call(this, name, scores);
+  this.canceled = canceled;
+}
+
+GradeLecture.prototype = new Lecture();
+GradeLecture.prototype.constructor = GradeLecture;
+
+GradeLecture.prototype.getEvaludationMethod = function() {
+  return "Grade"
+}
+```
+>위의 코드에서는 GradeLecture의 prototype에 Lecture 인스턴스를 할당했다.\
+>이 과정을 통해 GradeLecture를 이용해 생성된 모든 객체들이 prototype을 통해 Lecture에 정의된 모든 속성과 함수에 접근할 수 있게 된다.\
+>이제 메시지를 전송하면 prototype으로 연결된 객체 사이의 경로를 통해 객체 사이의 메서드 탐색이 자동으로 이뤄진다.
+
+```JavaScript
+var grade_lecture = new GradeLecture("OOP", false, [1, 2, 3]);
+grade_lecture.stats();
+```
+>stats매시지를 전송하면\
+>1.GradeLecturedp stats매서드가 존재하는지 검사한다.\
+>2.GradeLecture에는 stats메서드가 없기에 다시 prototype을 따라 Lecture의 인스턴스에 접근 후 stats 메서드가 있는지 검사하고 stats를 발견하고 메서드를 실행한다.\
+>3.Lecture의 stats메서드를 실행하는 도중에 this.getEvaluationMethod()를 발견한다.\
+>4.상속과 마찬가지로 self참조가 가리키는 현재객체에서부터 다시 메서드 탐색을 실행하게 된다.\
+>5.현재 객체의 prototype이 참조하는 GradeLecture의 인스턴스에서 getEvaluationMethod메서드를 발견하고 이 메서드를 실행함으로서 탐색이 종료된다.
+
+![007](https://user-images.githubusercontent.com/50142323/132535157-fca52c8e-ba7b-4de9-a0f7-570d087a2fc1.jpeg)
+
+자바스크립트에서는 클래스가 존재하지 않기 때문에 오직 객체들 사이의 메시지 위임만을 이용해 다형성을 구현한다.\
+이것은 객체지향 패러다임에서 클래스가 필수 요소가 아니라는 점을 잘 보여주며, 또한 상속 이외의 방법으로도 다형성을 구현할 수 있다는 사실을 보여준다.
