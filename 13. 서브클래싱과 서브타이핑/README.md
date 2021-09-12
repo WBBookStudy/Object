@@ -280,48 +280,291 @@ public class OverlappedDiscountPolicy extends DiscountPolicy {
 - 리스코프 치환 원칙: DiscountPolicy와 협력하는 Movie의 관점에서 DiscountPolicy 대신 OverlappedDiscountPolicy와 협력하더라도 아무 문제가 없다. 다시 말해서 OverlappedDiscountPolicy는 클라이언트에 대한 영향 없이도 DiscountPolicy를 대체할 수 있다. 따라서 이 설계는 LSP를 만족한다
 - 개방-폐쇄 원칙: 중복 할인 정책이라는 새로운 기능을 추가하기 위해 DiscountPolicy의 자식 클래스인 Overlapped DiscountPolicy를 추가하더라도 Movie에는 영향을 끼치지 않는다. 다시 말해서 기능 확장을 하면서 기존 코드를 수정할 필요는 없다. 따라서 이 설계는 OCP를 만족한다.
 
+## 05. 계약에 의한 설계와 서브타이핑
+계약에 의한 설계는 클라이언트가 정상적으로 메서드를 실행하기 위해 만족시켜야 하는 **사전조건(precondition)** 과 메서드가 실행된 후에 서버가 클라이언트에게 보장해야 하는 **사후조건(postcondition)** , 메서드 실행 전과 실행 후에 인스턴스가 만족시켜야 하는 **클래스 불변식(class invariant)** 의 세 가지 요소로 구성된다.
+
+```Java
+
+public class Movie {
+    private String title;
+    private Duration runningTime;
+    private Money fee;
+    private DiscountPolicy discountPolicy;
+
+    public Movie(String title, Duration runningTime, Money fee, DiscountPolicy discountPolicy) {
+        this.title = title;
+        this.runningTime = runningTime;
+        this.fee = fee;
+        this.discountPolicy = discountPolicy;
+    }
+
+    public Money getFee() {
+        return fee;
+    }
+
+    public Money calculateMovieFee(Screening screening) {
+        return fee.minus(discountPolicy.calculateDiscountAmount(screening));
+    }
+}
+```
+> Movie는 DiscountPolicy의 인스턴스에게 calculateDiscountAmount 메시지를 전송하는 클라이언트다. DiscountPolicy는 Movie의 메시지를 수신한 후 할인 가격을 계산해서 반환한다.
+
+```Java
+public abstract class DiscountPolicy {
+    private List<DiscountCondition> conditions = new ArrayList<>();
+
+    public DiscountPolicy(DiscountCondition ... conditions) {
+        this.conditions = Arrays.asList(conditions);
+    }
+
+    public Money calculateDiscountAmount(Screening screening) {
+        checkPrecondition(screening);
+
+        Money amount = Money.ZERO;
+        for(DiscountCondition each : conditions) {
+            if (each.isSatisfiedBy(screening)) {
+                amount = getDiscountAmount(screening);
+                checkPostcondition(amount);
+                return amount;
+            }
+        }
+
+        amount = screening.getMovieFee();
+        checkPostcondition(amount);
+        return amount;
+    }
+
+    abstract protected Money getDiscountAmount(Screening Screening);
+}
+```
+> 계약에 의한 설계에 따르면 협력하는 클라이언트와 슈퍼타입의 인스턴스 사이에는 어떤 계약이 맺어져 있다. 클라이언트와 슈퍼타입은 이 계약을 준수할 때만 정상적으로 협력할 수 있다.
+
+#### 사전조건
+##### 01. DiscountPolicy의 calculateDiscountAmount 메서드는 인자로 전달된 screening이 null인지 여부를 확인하지 않는다. 하지만 screeing에 null이 전달된다면 screening getMovieFee()가 실행될 떄 NullPointException이 발생한다.
+```Java
+assert screening != null && screening.getStartTime().isAfter(LocalDateTime.now());
+```
+
+##### 02. Movie의 calculateMovieFee 메서드를 살펴보면 DiscountPolicy의 calculateDiscountAmount 메서드의 반환값에 어떤 처리도 하지 않고 fee에서 차감하고 있음을 알 수 있다. 따라서 calculateDiscountAmount메서드의 반환값은 항상 null이 아니어야 한다. 
+```Java
+assert amount != null && amount.isGreaterThanOrEqual(Money.ZERO);
+```
+
+```Java
+public abstract class DiscountPolicy {
+    private List<DiscountCondition> conditions = new ArrayList<>();
+
+    public DiscountPolicy(DiscountCondition ... conditions) {
+        this.conditions = Arrays.asList(conditions);
+    }
+
+    public Money calculateDiscountAmount(Screening screening) {
+        checkPrecondition(screening);
+
+        Money amount = Money.ZERO;
+        for(DiscountCondition each : conditions) {
+            if (each.isSatisfiedBy(screening)) {
+                amount = getDiscountAmount(screening);
+                checkPostcondition(amount);
+                return amount;
+            }
+        }
+
+        amount = screening.getMovieFee();
+        checkPostcondition(amount);
+        return amount;
+    }
+
+    protected void checkPrecondition(Screening screening) {
+        assert screening != null &&
+                screening.getStartTime().isAfter(LocalDateTime.now());
+    }
+
+    protected void checkPostcondition(Money amount) {
+        assert amount != null && amount.isGreaterThanOrEqual(Money.ZERO);
+    }
 
 
+    abstract protected Money getDiscountAmount(Screening Screening);
+}
+```
+```Java
+public class Movie {
+    private String title;
+    private Duration runningTime;
+    private Money fee;
+    private DiscountPolicy discountPolicy;
 
+    public Movie(String title, Duration runningTime, Money fee, DiscountPolicy discountPolicy) {
+        this.title = title;
+        this.runningTime = runningTime;
+        this.fee = fee;
+        this.discountPolicy = discountPolicy;
+    }
 
+    public Money getFee() {
+        return fee;
+    }
 
+    public Money calculateMovieFee(Screening screening) {
+        if (screening == null ||
+                screening.getStartTime().isBefore(LocalDateTime.now())) {
+            throw new InvalidScreeningException();
+        }
 
+        return fee.minus(discountPolicy.calculateDiscountAmount(screening));
+    }
+}
+```
+> 조건을 체크하는것은 Movie의 책임이다.
 
+-> Movie의 입장에서 이 클래스들은 DiscountPolicy를 대체할 수 있기 때문에 서브타이핑 관계라고 할 수 있다.
 
+### 서브타입과 계약
+계약의 관점에서 상속이 초래하는 가장 큰 문제는 자식 클래스가 부모 클래스의 메서드를 오버라이딩 할 수 있다는 것이다.  
 
+```Java
+public class BrokenDiscountPolicy extends DiscountPolicy {
 
+    public BrokenDiscountPolicy(DiscountCondition... conditions) {
+        super(conditions);
+    }
 
+    @Override
+    public Money calculateDiscountAmount(Screening screening) {
+        checkPrecondition(screening);                 // 기존의 사전조건
+        checkStrongerPrecondition(screening);         // 더 강력한 사전조건
 
+        Money amount = screening.getMovieFee();
+        checkPostcondition(amount);                   // 기존의 사후조건
+        return amount;
+    }
 
+    private void checkStrongerPrecondition(Screening screening) {
+        assert screening.getEndTime().toLocalTime()
+                .isBefore(LocalTime.MIDNIGHT);
+    }
 
+    private void checkStrongerPostcondition(Money amount) {
+        assert amount.isGreaterThanOrEqual(Money.wons(1000));
+    }
 
+    @Override
+    protected Money getDiscountAmount(Screening screening) {
+        return Money.ZERO;
+    }
+}
+```
+> checkStrongerPrecondition 라는 사전조건을 필요로한다. 따라서 DiscountPolicy보다 더 강화된 사전조건을 정의한다.
+-> 사전조건을 알 수 없기 때문에 서브타입을 실패한다.
 
+##### 자식 클래스가 부모 클래스의 서브타입이 되기 위해서는 다음 조건을 만족시켜야한다
+> 서브 타입에 더 강력한 사전조건을 정의할 수 없다.
 
+```Java
+public class BrokenDiscountPolicy extends DiscountPolicy {
 
+    public BrokenDiscountPolicy(DiscountCondition... conditions) {
+        super(conditions);
+    }
 
+    @Override
+    public Money calculateDiscountAmount(Screening screening) {
+        // checkPrecondition(screening);                 // 기존의 사전조건 제거
 
+        Money amount = screening.getMovieFee();
+        checkPostcondition(amount);                   // 기존의 사후조건
+        return amount;
+    }
 
+    private void checkStrongerPrecondition(Screening screening) {
+        assert screening.getEndTime().toLocalTime()
+                .isBefore(LocalTime.MIDNIGHT);
+    }
 
+    private void checkStrongerPostcondition(Money amount) {
+        assert amount.isGreaterThanOrEqual(Money.wons(1000));
+    }
 
+    @Override
+    protected Money getDiscountAmount(Screening screening) {
+        return Money.ZERO;
+    }
+}
 
+```
+> 서브타입에 슈퍼타입과 같거나 더 약한 사전조건을 정의할 수 있다.
 
+```Java
+public class BrokenDiscountPolicy extends DiscountPolicy {
 
+    public BrokenDiscountPolicy(DiscountCondition... conditions) {
+        super(conditions);
+    }
 
+    @Override
+    public Money calculateDiscountAmount(Screening screening) {
+        checkPrecondition(screening);                 // 기존의 사전조건
 
+        Money amount = screening.getMovieFee();
+        checkPostcondition(amount);                   // 기존의 사후조건
+        checkStrongerPostcondition(amount);           // 더 강력한 사후조건
+        return amount;
+    }
 
+    private void checkStrongerPrecondition(Screening screening) {
+        assert screening.getEndTime().toLocalTime()
+                .isBefore(LocalTime.MIDNIGHT);
+    }
 
+    private void checkStrongerPostcondition(Money amount) {
+        assert amount.isGreaterThanOrEqual(Money.wons(1000));
+    }
 
+    @Override
+    protected Money getDiscountAmount(Screening screening) {
+        return Money.ZERO;
+    }
+}
+``` 
+> 서브타입에 슈퍼타입과 같거나 더 강한 사후조건을 정의할 수 있다.
 
+```Java
+public class BrokenDiscountPolicy extends DiscountPolicy {
 
+    public BrokenDiscountPolicy(DiscountCondition... conditions) {
+        super(conditions);
+    }
 
+    @Override
+    public Money calculateDiscountAmount(Screening screening) {
+        checkPrecondition(screening);                 // 기존의 사전조건
 
+        Money amount = screening.getMovieFee();
+        // checkPostcondition(amount);                   // 기존의 사후조건 제거
+        checkWeakerPostcondition(amount);           // 더 약한 사후조건 추가
+        return amount;
+    }
 
+    private void checkStrongerPrecondition(Screening screening) {
+        assert screening.getEndTime().toLocalTime()
+                .isBefore(LocalTime.MIDNIGHT);
+    }
 
+    private void checkStrongerPostcondition(Money amount) {
+        assert amount.isGreaterThanOrEqual(Money.wons(1000));
+    }
 
+    private void checkWeakerPostcondition(Money amount) {
+    	assert amount != null;
+    }
 
-
-
-
-
+    @Override
+    protected Money getDiscountAmount(Screening screening) {
+        return Money.ZERO;
+    }
+}
+```
+> 서브타입에 더 약한 사후조건을 정의할 수 없다.
 
 
