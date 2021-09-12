@@ -162,6 +162,123 @@ class Penguin: Bird {
 ##### 서브 타이핑 관계가 유지되기 위해서는 서브타입이 슈퍼타입이 하는 모든 행동을 동일하게 할 수 있어야 한다. (behavioral subsitution)
 
 
+## 04. 리스코프 치환 원칙
+
+바바라 리스코프에 의하면 상속 관계로 연결한 두 클래스가 서브타이핑 관계를 만족시키기 위해서는 다음의 조건을 만족시켜야한다.
+
+> S형의 각 객체 o1에 대해 T형의 객체 o2가 하나 있고, T에 의해 정의된 모든 프로그램 P에서 T가 S로 치환될 때, P의 동작이 변하지 않으면 S는 T의 서브타입이다.
+-> 서브타입은 그것의 기반 타입에 대해 대체 가능해야 한다.  
+-> 10장에서 본 Stack과 Vector는 리스코프 치환 원칙을 위반하는 예시. Penguin과 Bird도 마찬가지. 
+
+```Java
+public class Rectangle {
+	private int x, y, width, height;
+
+	public Rectangle(int x, int y, int width, int height) {
+		this.x = x;
+		this.y = y;
+		this.width = width;
+		this.height = height;
+	}
+
+	public int getWidth() {
+		return width;
+	}
+
+	public void setWidth(int width) {
+		this.width = width;
+	}
+
+	public int getHeight() {
+		return height;
+	}
+
+	public void setHeight(int height) {
+		this.height = height;
+	}
+
+	public int getArea() {
+		return width * height;
+	}
+}
+
+```
+
+```Java
+public class Square extends Rectangle {
+	public Square(int x, int y, int size) {
+		super(x, y, size, size);
+	}
+
+	@Override
+	public void setWidth(int width) {
+		super.setWidth(width);
+		super.setHeight(height);
+	}
+
+	@Override
+	public void setHeight(int height) {
+		super.setWidth(width);
+		super.setHeight(height);
+	}
+}
+```
+> Square는 Rectangle의 자식 클래스이기 때문에 Rectangle이 사용되는 모든 곳에서 Rectangle로 업캐스팅 될 수 있다.
+
+```Java
+public void resize(Rectangle rectangle, int width, int height) {
+	rectangle.setWidth(width);
+	rectangle.setHeight(height);
+	assert rectangle.getWidth() == width && rectangle.getHeight() == height;
+}
+```
+> 높이와 너비를 다르게 준다.
+
+```Java
+Square square = new Square(10, 10, 10);
+resize(square, 50, 100);
+```
+> 메서드 실행이 실패하게 된다.
+
+#### resize 메서드의 관점에서 Rectangle 대신 Square를 사용할 수 없기 때문에 Square는 Rectangle이 아니다. 단순 코드를 재사용 할뿐.. 즉 두 클래스는 리스코프 치환 원칙을 위반하기 때문에 서브타이핑 관계가 아니라 서브클래싱 관계이다.
+
+### 클라이언트와 대체 가능성
+Square가 Rectangle을 대체할 수 없는 이유는 클라이언트의 관점에서 Square와 Rectangle이 다르기 때문이다.  
+Rectangle을 사용하는 클라이언트는 Rectangle의 너비와 높이가 다를 수 있다는 가정하에 코드를 개발한다. 반면 Square는 너비와 높이가 항상 같다.  
+리스코프 치환 원칙은 "클라이언트와 격리한 채로 본 모델은 의미 있게 검증하는 것이 불가능하다"는 아주 중요한 결론을 이끈다.  
+
+### is-a 관계 다시 살펴보기
+is-a 관계로 표현된 문장을 볼 때 마다 문장 앞에 "클라이언트 입장에서"라는 말이 빠져있다고 생각하자.  
+-> (클라이언트 입장에서) 정사각형은 직사각형이다. (클라이언트 입장에서) 펭귄은 새다.  
+클라이언트를 배제한 is-a관계는 혼란을 일으킨다.  
+  
+is-a 관계는 객체지향에서 중요한 것은 객체의 속성이 아니라 객체의 행동이라는 점을 강조한다.  
+
+### 라스코프 치환 원칙은 유연한 설계의 기반이다
+```Java
+public class OverlappedDiscountPolicy extends DiscountPolicy {
+	private List<DiscountPolicy> discountPolicies = new ArrayList<>();
+
+	public OverlappedDiscountPolicy(DiscountPolicy ... discountPolicies) {
+		this.discountPolicies = Arrays.asList(discountPolicies);
+	}
+
+	@Override
+	protected Money getDiscountAmount(Screening screeing) {
+		Money result = Money.ZERO;
+		for(DiscountPolicy each : discountPolicies) {
+			result = result.plus(each.calculateDiscountAmount(screening));
+		}
+		return result;
+	}
+}
+
+```
+> 의존성 역전 원칙과 개방-폐쇄 원칙, 리스코프 치환 원칙이 한데 어우러져 설계를 확장 가능하게 만든 예시
+
+- 의존성 역전 원칙: 구체 클래스인 Movie와 OverlappedDiscountPolicy 모두 추상 클래스인 DiscountPolicy에 의존한다. 상위 수준의 모듈인 Movie와 하위 수준의 모듈인 OverlappedDiscountPolicy는 모두 추상 클래스인 DiscountPolicy에 의존한다. 따라서 이 설계는 DIP를 만족한다.
+- 리스코프 치환 원칙: DiscountPolicy와 협력하는 Movie의 관점에서 DiscountPolicy 대신 OverlappedDiscountPolicy와 협력하더라도 아무 문제가 없다. 다시 말해서 OverlappedDiscountPolicy는 클라이언트에 대한 영향 없이도 DiscountPolicy를 대체할 수 있다. 따라서 이 설계는 LSP를 만족한다
+- 개방-폐쇄 원칙: 중복 할인 정책이라는 새로운 기능을 추가하기 위해 DiscountPolicy의 자식 클래스인 Overlapped DiscountPolicy를 추가하더라도 Movie에는 영향을 끼치지 않는다. 다시 말해서 기능 확장을 하면서 기존 코드를 수정할 필요는 없다. 따라서 이 설계는 OCP를 만족한다.
 
 
 
