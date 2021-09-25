@@ -450,7 +450,221 @@ public class Movie {
 #### 변하지 않는 부분의 일부로 타입 계층을 합성한다.
 앞에서 구현한 타입 계층을 변하지 않는 부분에 합성한다. 변하지 않는 부분에서는 변경되는 구체적인 사항에 결합돼서는 안된다. 의존성 주입과 같이 결합도를 느슨하게 유지할 수 있는 방법을 이용해 오직 추상화에만 의존하게 만든다. 이제 변하지 않는 부분은 변하는 부분의 구체적인 종류에 대해서는 알지 못할 것이다. 변경이 캡슐화 된 것이다.
 
+## 03. 일관성 있는 기본 정책 구현하기
 
+### 변경 분리하기
+시간대별, 요알별, 구간별 방식의 공통점은 각 기본 정책을 구성하는 방식이 유사하다는 점이다.  
+ - 기본 정책은 한 개 이상의 '규칙'으로 구성된다.
+ - 하나의 '규칙'은 '적용조건'과 '단위요금'의 조합이다.
+
+![KakaoTalk_Photo_2021-09-25-21-32-38](https://user-images.githubusercontent.com/60125719/134771733-f1fb8bb2-c462-4c17-a7a4-07b10abef5df.jpeg)
+![KakaoTalk_Photo_2021-09-25-21-32-42](https://user-images.githubusercontent.com/60125719/134771736-fb265554-9f42-4e64-89da-5801d523ef7b.jpeg)
+> 시간대별, 요일별, 구간별 방식의 차이점은 각 기본 정책별로 요금을 계산하는 적용조건이 다르다 ! 변하지 않는 규칙으로부터 변하는 적용조건을 분리해야한다.
+
+### 변경 캡슐화 하기
+변경을 캡슐화하는 가장 좋은 방법은 변하지 않는 부분으로부터 변하는 부분을 분리하는 것이다. 물론 변하는 부분의 공통점을 추상화 하는것도 잊어서는 안된다.  
+![KakaoTalk_Photo_2021-09-25-21-38-32](https://user-images.githubusercontent.com/60125719/134771917-c83b6fcd-9470-4d6d-b42e-d12fb506a02b.jpeg)
+> FeeRule은 추상화인 FeeCondition에 대해서만 의존하기 때문에 '적용조건'이 변하더라도 영향을 받지 않는다. 즉, '적용조건'이라는 변경에 대해 캡슐화돼 있다.
+
+### 협력 패턴 설계하기
+
+![KakaoTalk_Photo_2021-09-25-21-45-16](https://user-images.githubusercontent.com/60125719/134772109-c14a4ce1-7f86-4c1d-aef8-f0c6e577e33b.jpeg)
+> 변하지 않는 추상화만을 남기면 이렇게 됨
+![KakaoTalk_Photo_2021-09-25-21-45-20](https://user-images.githubusercontent.com/60125719/134772110-440800a0-bc1b-4279-9c72-943143b50cfb.jpeg)
+> 추상화들의 협력
+
+![KakaoTalk_Photo_2021-09-25-21-48-42](https://user-images.githubusercontent.com/60125719/134772193-7a501c16-6769-4677-aeff-b0a975d9e18c.jpeg)
+> 예시. 이렇게 하자.
+
+객체지향에서는  모든 작업을 객체의 책임으로 생각하기 때문에 이 두 개의 책임을 객체에게 할당하자. 
+1. 적용조건을 가장 잘 알고 있는 정보 전문가인 FeeCondition에게 할당하는 것이 적절하다.
+2. 분리된 통화 구간에 '단위요금'을 적용해서 요금을 계산하는것이 두번째 작업. 이 작업은 요금기준의 정보 전문가인 FeeRule이 담당하는 것이 적절하다.
+
+![KakaoTalk_Photo_2021-09-25-21-52-10](https://user-images.githubusercontent.com/60125719/134772289-f753974d-2420-4817-95a3-a84b637bc20b.jpeg)
+> 이 협력에 FeeCondition이라는 추상화가 참여하고 있는것에 주목하자
+![KakaoTalk_Photo_2021-09-25-21-52-14](https://user-images.githubusercontent.com/60125719/134772293-2787fa10-5db2-4209-97c1-3be1133a4d01.jpeg)
+> 만약 기간별 방식으로 요금을 계산하고 싶다면 이렇게 !
+
+### 추상화 수준에서 협력 패턴 구현하기
+
+```Java
+public interface FeeCondition {
+    List<DateTimeInterval> findTimeIntervals(Call call);
+}
+```
+> findTimeIntervals 오퍼레이션은 인자로 전달된 Call의 통화기간 중에서 적용조건을 만족하는 기간을 구한 후 List에 담아 반환한다.
+
+```Java
+public class FeeRule {
+    private FeeCondition feeCondition;
+    private FeePerDuration feePerDuration;
+
+    public FeeRule(FeeCondition feeCondition, FeePerDuration feePerDuration) {
+        this.feeCondition = feeCondition;
+        this.feePerDuration = feePerDuration;
+    }
+
+    public Money calculateFee(Call call) {
+        return feeCondition.findTimeIntervals(call)
+                .stream()
+                .map(each -> feePerDuration.calculate(each))
+                .reduce(Money.ZERO, (first, second) -> first.plus(second));
+    }
+}
+```
+> FeeRule은 단위요금(FeePerDuration) 과 적용조건(FeeCondition)을 저장하는 두 개의 인스턴스 변수로 구성된다. FeeRule의 calculateFee 메서드는 FeeCondition에게 fineTimeIntervals 메시지를 전송해서 조건을 만족하는 시간의 목록을 반환받은 후 feePerDuration의 값을 이용해 요금을 계산한다.
+
+```Java
+public class FeePerDuration {
+    private Money fee;
+    private Duration duration;
+
+    public FeePerDuration(Money fee, Duration duration) {
+        this.fee = fee;
+        this.duration = duration;
+    }
+
+    public Money calculate(DateTimeInterval interval) {
+        return fee.times(Math.ceil((double)interval.duration().toNanos() / duration.toNanos()));
+    }
+}
+
+```
+> FeePerDuration 클래스는 "단위 시간당 요금"이라는 개념을 표현하고 이 정보를 이용해 일정 기간 동안의 요금을 계산하는 calculate 메서드를 구현한다.
+
+```Java
+public final class BasicRatePolicy implements RatePolicy {
+    private List<FeeRule> feeRules = new ArrayList<>();
+
+    public BasicRatePolicy(FeeRule ... feeRules) {
+        this.feeRules = Arrays.asList(feeRules);
+    }
+
+    @Override
+    public Money calculateFee(Phone phone) {
+        return phone.getCalls()
+                .stream()
+                .map(call -> calculate(call))
+                .reduce(Money.ZERO, (first, second) -> first.plus(second));
+    }
+
+    private Money calculate(Call call) {
+        return feeRules
+                .stream()
+                .map(rule -> rule.calculateFee(call))
+                .reduce(Money.ZERO, (first, second) -> first.plus(second));
+    }
+}
+```
+> 이제 BasicRatePolicy가 FeeRule의 컬렉션을 이용해 전체 통화 요금을 계산하도록 수정할 수 있다.  
+
+이로써 추상적인 수준에서 협력을 완성했다. 하지만 협력이 동작하기 위해서는 구체적인 컨텍스트로 확장해야한다. FeeCondition이라는 추상화의 서브타입을 추가해보자.
+
+### 구체적인 협력 구현하기
+현재 요금제가 시간대별 정책인지, 요일별 정책인지, 구간별 정책인지를 결정하는 기준은 FeeCondition을 대체하는 객체의 타입이 무엇인가에 달려있다.
+
+#### 시간대별 정책
+
+```Java
+public class TimeOfDayFeeCondition implements FeeCondition {
+    private LocalTime from;
+    private LocalTime to;
+
+    public TimeOfDayFeeCondition(LocalTime from, LocalTime to) {
+        this.from = from;
+        this.to = to;
+    }
+
+    @Override
+    public List<DateTimeInterval> findTimeIntervals(Call call) {
+        return call.getInterval().splitByDay()
+                .stream()
+                .filter(each -> from(each).isBefore(to(each)))
+                .map(each -> DateTimeInterval.of(
+                                LocalDateTime.of(each.getFrom().toLocalDate(), from(each)),
+                                LocalDateTime.of(each.getTo().toLocalDate(), to(each))))
+                .collect(Collectors.toList());
+    }
+
+    private LocalTime from(DateTimeInterval interval) {
+        return interval.getFrom().toLocalTime().isBefore(from) ?
+                from : interval.getFrom().toLocalTime();
+    }
+
+    private LocalTime to(DateTimeInterval interval) {
+        return interval.getTo().toLocalTime().isAfter(to) ?
+                to : interval.getTo().toLocalTime();
+    }
+}
+```
+
+#### 요일별 정책
+```Java
+public class DayOfWeekFeeCondition implements FeeCondition {
+    private List<DayOfWeek> dayOfWeeks = new ArrayList<>();
+
+    public DayOfWeekFeeCondition(DayOfWeek ... dayOfWeeks) {
+        this.dayOfWeeks = Arrays.asList(dayOfWeeks);
+    }
+
+    @Override
+    public List<DateTimeInterval> findTimeIntervals(Call call) {
+        return call.getInterval()
+                .splitByDay()
+                .stream()
+                .filter(each ->
+                        dayOfWeeks.contains(each.getFrom().getDayOfWeek()))
+                .collect(Collectors.toList());
+    }
+}
+```
+
+#### 구간별 정책
+```Java
+public class DurationFeeCondition implements FeeCondition {
+    private Duration from;
+    private Duration to;
+
+    public DurationFeeCondition(Duration from, Duration to) {
+        this.from = from;
+        this.to = to;
+    }
+
+    @Override
+    public List<DateTimeInterval> findTimeIntervals(Call call) {
+        if (call.getInterval().duration().compareTo(from) < 0) {
+            return Collections.emptyList();
+        }
+
+        return Arrays.asList(DateTimeInterval.of(
+                call.getInterval().getFrom().plus(from),
+                call.getInterval().duration().compareTo(to) > 0 ?
+                        call.getInterval().getFrom().plus(to) :
+                        call.getInterval().getTo()));
+    }
+}
+```
+> 이전과는 다르게 협력을 일관성 있게 만들면 문제를 해결 할 수 있다. 간단하게 FeeCondition인터페이스를 구현하는 DurationFeeCondition 클래스를 추가한 후 findTimeIntervals 메서드를 오버라이딩하면 된다.
+
+유사한 기능에 대해 유사한 협력 패턴을 적용하는 것은 객체지향 시스템에서 개념적 무결성을 유지할 수 있는 가장 효과적인 방법이다.
+
+### 협력 패턴에 맞추기
+여러개의 규칙으로 구성되고 규칙이 적용조건과 단위요금의 조합으로 구성되는 시간대별, 요일별, 기간별 정책과 달리 고정요금 정책은 규칙이라는 개념이 필요하지 않고 단위요금 정보만 있으면 충분하다.  
+이 문제를 해결할 수 있는 유일한 벙법은 고정요금 방식의 FeeCondition을 추가하고 인자로 전달된 Call의 전체 통화 시간을 반환하게 하는 것이다. 
+
+```Java
+public class FixedFeeCondition implements FeeCondition {
+    @Override
+    public List<DateTimeInterval> findTimeIntervals(Call call) {
+        return Arrays.asList(call.getInterval());
+    }
+}
+```
+![KakaoTalk_Photo_2021-09-25-22-59-44](https://user-images.githubusercontent.com/60125719/134774129-44ad90d1-9218-4cc6-8dcf-66236ae455d5.jpeg)
+
+
+### 패턴을 찾아라
+객체지향 설계는 객체의 행동과 그것을 지원하기 위한 구조를 계속 수정해 나가는 작업을 반복해 나가면서 다듬어진다. 협력자들 간에 부하를 좀 더 균형 있게 배분하는 방법을 새로 만들어내면 나눠줄 책임이 바뀌게 된다. 만약 객체들이 서로 통신하는 방법을 개선해냈다면 이들 간의 상호작용은 재정의돼야 한다. 이 같은 과정을 거치면서 객체들이 자주 통신하는 경로는 더욱 효율적이게 되고, 주어진 작업을 수행하는 표준 방안이 정착된다. 협력패턴이 드러나는 것이다!
 
 
 
