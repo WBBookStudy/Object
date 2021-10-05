@@ -31,20 +31,17 @@
 
 ### 캡슐화와 디자인 패턴
 
-####STRATEGY 패턴
+> STRATEGY 패턴
 ![13](https://user-images.githubusercontent.com/50142323/136009445-30420b93-980b-474e-a0ed-f71d6ee28b6b.png)
 > 알고리즘의 변경을 캡슐화 하는것이 목적이고, 이를 구현하기 위해 객체 합성을 이용한다.
 
-####TEMPLATE METHOD 패턴
+> TEMPLATE METHOD 패턴
 ![14](https://user-images.githubusercontent.com/50142323/136010171-2dd22cb6-0ddd-444c-ae39-83812701ea04.png)
 > 알고리즘을 캡슐화하기 위해 합성 관계가 아닌 상속 관계를 사용하는 것
 
-####DECORATOR 패턴
+> DECORATOR 패턴
 ![15](https://user-images.githubusercontent.com/50142323/136010814-8c179f6b-014d-4e1e-ae90-7b9f8ca399b9.png)
 > 객체의 행동을 동적으로 추가할 수 있게 해주는 패턴으로서 기본적으로 객체의 행동을 결합하기 위해 객체 합성을 사용한다. 또한 선택적인 행동의 개수와 순서에 대한 변경을 캡슐화 할 수 있다.
-
-![KakaoTalk_20211005_194631853](https://user-images.githubusercontent.com/50142323/136008999-45564c60-0e88-4b7c-b9c9-9a8048118e4f.jpg)
->
 
 ### 패턴은 출발점이다
 패턴은 설계의 목표가 돼서는 안 된다. 패턴은 단지 목표로 하는 설계에 이를 수 있는 방향을 제시하는 나침반에 불과하다. 
