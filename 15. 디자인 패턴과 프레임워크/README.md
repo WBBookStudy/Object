@@ -31,7 +31,7 @@
 
 ### 캡슐화와 디자인 패턴
 
-> STRATEGY 패턴
+> STRATEGY 패턴\n
 ![13](https://user-images.githubusercontent.com/50142323/136009445-30420b93-980b-474e-a0ed-f71d6ee28b6b.png)
 > 알고리즘의 변경을 캡슐화 하는것이 목적이고, 이를 구현하기 위해 객체 합성을 이용한다.
 
